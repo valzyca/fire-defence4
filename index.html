@@ -35,7 +35,7 @@
             background-color: #000; display: flex; flex-direction: column; justify-content: center; align-items: center;
             transition: opacity 0.5s ease;
         }
-        #start-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 11; }
+        #start-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 11; pointer-events: none; }
         #start-ui { position: relative; z-index: 12; text-align: center; pointer-events: none; width: 100%; height: 100%; }
         
         #start-prompt { 
@@ -46,14 +46,14 @@
         @keyframes pulseGlow { 0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(0.97); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.03); } }
 
         /* 頂部引進與狀態引導 */
-        #instruction { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 15; background: rgba(0,0,0,0.75); color: #fff; padding: 12px 24px; border-radius: 30px; border: 1px solid #ff4500; text-align: center; box-shadow: 0 0 15px rgba(255, 69, 0, 0.4); display: none; }
+        #instruction { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 15; background: rgba(0,0,0,0.75); color: #fff; padding: 12px 24px; border-radius: 30px; border: 1px solid #ff4500; text-align: center; box-shadow: 0 0 15px rgba(255, 69, 0, 0.4); display: none; width: 85%; max-width: 400px; box-sizing: border-box; }
         
         /* 右下角魔法計數器 */
         #scoreboard { position: absolute; bottom: 35px; right: 35px; z-index: 15; background: rgba(0,0,0,0.8); color: #fff; padding: 15px; border-radius: 12px; border: 2px solid #00d2ff; font-weight: bold; font-size: 16px; line-height: 1.6; box-shadow: 0 0 10px rgba(0, 210, 255, 0.3); display: none; }
         .success { color: #00d2ff; }
         .failed { color: #ff4500; }
 
-        /* 左下角五頂魔法帽生命值（HP）圖示區 - 左右分流防重疊 */
+        /* 左下角五頂魔法帽生命值（HP）圖示區 */
         #hat-hp-bar {
             display: none !important; position: absolute; bottom: 35px; left: 35px; z-index: 15;
             gap: 8px; justify-content: center; align-items: center; background: rgba(0,0,0,0.6); padding: 10px 15px; border-radius: 20px; border: 1px solid #ff4500;
@@ -98,6 +98,9 @@
 </head>
 <body>
 
+    <!-- 實時鏡頭 -->
+    <video id="webcam" preload autoplay loop muted playsinline></video>
+
     <!-- 初始主畫面 -->
     <div id="start-screen">
         <canvas id="start-canvas"></canvas>
@@ -105,11 +108,8 @@
             <div id="start-prompt">─ 點擊螢幕 喚醒魔杖 ─</div>
         </div>
     </div>
-
-    <!-- 實時鏡頭 -->
-    <video id="webcam" preload autoplay loop muted playsinline></video>
     
-    <!-- 遊戲特效層 -->
+    <!-- 遊戲戰鬥特效層 -->
     <canvas id="game-canvas"></canvas>
 
     <!-- 符文自適應外框 -->
@@ -121,10 +121,10 @@
     <!-- 羅馬數字巨大倒數計時層 -->
     <div id="countdown-overlay">III</div>
 
-    <!-- 提示 UI -->
+    <!-- 頂部提示 UI -->
     <div id="instruction">
         <strong id="ritual-title" style="color: #ffd700;">結界啟動中...</strong><br>
-        <span id="ritual-desc" style="font-size: 13px;">請用手指在圓圈內依序滑過藍色發光點，一筆畫畫出五芒星！</span>
+        <span id="ritual-desc" style="font-size: 13px;">請揮動魔杖用準星依序點擊圓圈上的藍色亮點，連出魔法陣密碼！</span>
     </div>
 
     <!-- 右下角計數器 -->
@@ -170,7 +170,7 @@
         let gameState = 'cover'; 
         let countdownNumber = 3;
 
-        // 100% 原始黃金基準火球與準星變數定義
+        // 100% 黃金基準火球與魔杖準星數據定義
         let fireball = { x: 0, y: 0, size: 5, speedX: 0, speedY: 0, active: false };
         let crosshair = { x: 0, y: 0, targetX: 0, targetY: 0, rotation: 0, targetSize: 35, currentSize: 35, hasTracking: false };
         let explosions = []; 
@@ -180,7 +180,9 @@
         let bg1Img = new Image(); bg1Img.src = "bg-1.png";
         let circleRotation = 0; let bg1Rotation = 0; let ritualOpacity = 1.0; 
 
-        let pentagramPoints = []; let nextRequiredPoint = 0; let wandTrail = []; 
+        // 密碼錨點狀態宣告
+        let pentagramPoints = []; 
+        let nextRequiredPoint = 0; 
 
         // 巨龍與 AR 魔法帽物件
         let dragonImg = new Image(); dragonImg.src = "dragon head-front.png";
@@ -196,208 +198,52 @@
             startCanvas.width = window.innerWidth;
             startCanvas.height = window.innerHeight;
             dragonBoss.x = canvas.width / 2 - dragonBoss.width / 2;
-            generatePentagramPoints();
+            if (pentagramPoints.length === 0) {
+                generateRandomCirclePoints();
+            }
         }
         window.addEventListener('resize', resizeCanvases);
 
-        function generatePentagramPoints() {
+        function generateRandomCirclePoints() {
+            if (startCanvas.width === 0) return;
             let centerX = startCanvas.width / 2;
-            let W = startCanvas.width;
-            let H = startCanvas.height;
-            let minDim = Math.min(W, H);
-            let circleCenterY = H * 0.34;
+            let minDim = Math.min(startCanvas.width, startCanvas.height);
+            let circleCenterY = startCanvas.height * 0.34;
             let radius = minDim * 0.26; 
 
             pentagramPoints = [];
-            let drawOrderAngles = [ -Math.PI/2, Math.PI*0.7, -Math.PI*0.9, Math.PI*0.3, Math.PI*0.1 ];
-            for(let i=0; i<5; i++) {
-                let angle = drawOrderAngles[i];
-                pentagramPoints.push({ x: centerX + Math.cos(angle) * radius, y: circleCenterY + Math.sin(angle) * radius, activated: false });
-            }
-        }
-
-        function handleTouchMove(e) {
-            if (gameState !== 'drawing') return;
-            e.preventDefault();
-            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
-            wandTrail.push({ x: clientX, y: clientY });
-            if (wandTrail.length > 30) wandTrail.shift();
-
-            let targetPt = pentagramPoints[nextRequiredPoint];
-            if (targetPt) {
-                let dist = Math.hypot(clientX - targetPt.x, clientY - targetPt.y);
-                if (dist < 40) { 
-                    targetPt.activated = true;
-                    nextRequiredPoint++;
-                    if (nextRequiredPoint >= 5) gameState = 'success_anim';
-                }
-            }
-        }
-
-        startScreen.addEventListener('mousedown', (e) => {
-            if(gameState === 'cover') { gameState = 'drawing'; document.getElementById('start-prompt').style.display = 'none'; document.getElementById('instruction').style.display = 'block'; }
-        });
-        startScreen.addEventListener('mousemove', handleTouchMove);
-        startScreen.addEventListener('touchstart', (e) => {
-            if(gameState === 'cover') { gameState = 'drawing'; document.getElementById('start-prompt').style.display = 'none'; document.getElementById('instruction').style.display = 'block'; }
-        }, { passive: false });
-        startScreen.addEventListener('touchmove', handleTouchMove, { passive: false });
-
-        function updateStartScreen() {
-            if (gameStarted && gameState === 'playing') return;
-            if (startCanvas.width !== window.innerWidth || startCanvas.height !== window.innerHeight) resizeCanvases();
-            
-            startCtx.fillStyle = '#000000';
-            startCtx.fillRect(0, 0, startCanvas.width, startCanvas.height);
-
-            let W = startCanvas.width; let H = startCanvas.height;
-            let centerX = W / 2; let minDim = Math.min(W, H);
-            let circleCenterY = H * 0.34;
-
-            startCtx.save();
-            startCtx.globalAlpha = ritualOpacity;
-
-            if (gameState === 'cover' || gameState === 'success_anim') {
-                if (coronaParticles.length < 120) {
-                    let angle = Math.random() * Math.PI * 2;
-                    let speed = Math.random() * 2 + 1.5; 
-                    coronaParticles.push({
-                        x: centerX + Math.cos(angle) * (minDim * 0.25), y: circleCenterY + Math.sin(angle) * (minDim * 0.25),
-                        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-                        life: Math.random() * 30 + 20, maxLife: 50, size: Math.random() * 25 + 15
-                    });
-                }
-                startCtx.save();
-                startCtx.globalCompositeOperation = 'screen';
-                for (let i = coronaParticles.length - 1; i >= 0; i--) {
-                    let p = coronaParticles[i]; p.x += p.vx; p.y += p.vy; p.life--;
-                    if (p.life <= 0) { coronaParticles.splice(i, 1); continue; }
-                    let ratio = p.life / p.maxLife;
-                    let grad = startCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
-                    grad.addColorStop(0, 'rgba(255, 230, 150, ' + ratio + ')');
-                    grad.addColorStop(0.3, 'rgba(255, 90, 0, ' + ratio * 0.8 + ')');
-                    grad.addColorStop(1, 'rgba(0,0,0,0)');
-                    startCtx.beginPath(); startCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                    startCtx.fillStyle = grad; startCtx.fill();
-                }
-                startCtx.restore();
+            let angles = [];
+            for (let i = 0; i < 5; i++) {
+                let baseAngle = (Math.PI * 2 / 5) * i - Math.PI / 2;
+                let randomOffset = (Math.random() - 0.5) * (Math.PI * 2 / 15);
+                angles.push(baseAngle + randomOffset);
             }
 
-            let fixedSize = minDim * 0.58;
-
-            if (gameState === 'cover') {
-                startCtx.save(); startCtx.translate(centerX, circleCenterY);
-                circleRotation += 0.004; startCtx.rotate(circleRotation);
-                if (magicCircleImg.complete) startCtx.drawImage(magicCircleImg, -fixedSize / 2, -fixedSize / 2, fixedSize, fixedSize);
-                startCtx.restore();
-            } 
-            else if (gameState === 'drawing') {
-                startCtx.save(); startCtx.translate(centerX, circleCenterY);
-                bg1Rotation -= 0.002; startCtx.rotate(bg1Rotation);
-                if (bg1Img.complete) startCtx.drawImage(bg1Img, -fixedSize / 2, -fixedSize / 2, fixedSize, fixedSize);
-                startCtx.restore();
-
-                if (wandTrail.length > 1) {
-                    startCtx.save();
-                    startCtx.strokeStyle = 'rgba(0, 210, 255, 0.4)'; startCtx.lineWidth = 8; startCtx.lineCap = 'round'; startCtx.lineJoin = 'round';
-                    startCtx.beginPath(); startCtx.moveTo(wandTrail[0].x, wandTrail[0].y);
-                    for(let k=1; k<wandTrail.length; k++) startCtx.lineTo(wandTrail[k].x, wandTrail[k].y);
-                    startCtx.stroke();
-                    startCtx.strokeStyle = '#ffffff'; startCtx.lineWidth = 3;
-                    startCtx.beginPath(); startCtx.moveTo(wandTrail[0].x, wandTrail[0].y);
-                    for(let k=1; k<wandTrail.length; k++) startCtx.lineTo(wandTrail[k].x, wandTrail[k].y);
-                    startCtx.stroke(); startCtx.restore();
-                }
-
-                pentagramPoints.forEach((pt, index) => {
-                    startCtx.save();
-                    let isCurrent = (index === nextRequiredPoint);
-                    if (pt.activated) {
-                        startCtx.fillStyle = '#00ffff'; startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 9, 0, Math.PI * 2); startCtx.fill();
-                    } else if (isCurrent) {
-                        let breath = Math.sin(Date.now() * 0.008) * 2;
-                        startCtx.fillStyle = '#0077ff'; startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 11 + breath, 0, Math.PI * 2); startCtx.fill();
-                        startCtx.strokeStyle = '#ffffff'; startCtx.lineWidth = 1.5; startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 14 + breath, 0, Math.PI * 2); startCtx.stroke();
-                    } else {
-                        startCtx.fillStyle = 'rgba(0, 119, 255, 0.3)'; startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 8, 0, Math.PI * 2); startCtx.fill();
-                    }
-                    startCtx.restore();
+            for (let i = 0; i < 5; i++) {
+                pentagramPoints.push({
+                    x: centerX + Math.cos(angles[i]) * radius,
+                    y: circleCenterY + Math.sin(angles[i]) * radius,
+                    activated: false
                 });
-            } 
-            else if (gameState === 'success_anim') {
-                circleRotation += 0.06; bg1Rotation -= 0.04;   
-                startCtx.save(); startCtx.translate(centerX, circleCenterY); startCtx.rotate(bg1Rotation);
-                if (bg1Img.complete) startCtx.drawImage(bg1Img, -fixedSize / 2, -fixedSize / 2, fixedSize, fixedSize);
-                startCtx.restore();
-                startCtx.save(); startCtx.translate(centerX, circleCenterY); startCtx.rotate(circleRotation);
-                startCtx.shadowBlur = 40; startCtx.shadowColor = '#ffd700'; 
-                if (magicCircleImg.complete) startCtx.drawImage(magicCircleImg, -fixedSize / 2, -fixedSize / 2, fixedSize, fixedSize);
-                startCtx.restore();
-
-                ritualOpacity -= 0.02;
-                if (ritualOpacity <= 0) {
-                    ritualOpacity = 0; startScreen.style.display = 'none';
-                    triggerCountdown(); 
-                }
             }
-
-            if (gameState === 'cover' || gameState === 'drawing') {
-                startCtx.save();
-                let dynamicFontSize = Math.min(36, Math.max(18, minDim * 0.062));
-                startCtx.font = `bold ${dynamicFontSize}px 'Cinzel Decorative', Georgia, serif`;
-                startCtx.textAlign = "center"; startCtx.textBaseline = "middle"; startCtx.letterSpacing = "2px";
-                let textY1 = H * 0.71; let textY2 = textY1 + (dynamicFontSize * 1.25); 
-                startCtx.lineWidth = 2; startCtx.strokeStyle = "#000000";
-                startCtx.strokeText("KINETIC SORCERY", centerX, textY1); startCtx.strokeText("ACADEMY", centerX, textY2);
-                startCtx.fillStyle = "#ffcc00"; startCtx.fillText("KINETIC SORCERY", centerX, textY1); startCtx.fillText("ACADEMY", centerX, textY2);
-                startCtx.restore();
-            }
-
-            startCtx.restore();
-            requestAnimationFrame(updateStartScreen);
         }
 
-        function triggerCountdown() {
-            gameState = 'countdown';
-            countdownOverlay.style.display = 'block';
-            document.getElementById('ritual-title').innerText = "遠古巨龍降臨：結界充能完畢";
-            document.getElementById('ritual-title').style.color = "#00d2ff";
-            document.getElementById('ritual-desc').innerText = "注意防禦！AI 臉部追蹤充能中...";
-            
-            initTrackerAndAR();
-
-            const romanNumerals = ["", "I", "II", "III"];
-            let timer = setInterval(() => {
-                countdownNumber--;
-                if (countdownNumber > 0) {
-                    countdownOverlay.innerText = romanNumerals[countdownNumber];
-                } else {
-                    clearInterval(timer);
-                    countdownOverlay.style.display = 'none';
-                    document.getElementById('scoreboard').style.display = 'block';
-                    
-                    hpBar.style.setProperty('display', 'flex', 'important');
-                    stoneFrame.style.display = 'block';
-
-                    document.getElementById('ritual-title').innerText = "巫師火原素特訓：巨龍逆襲頭目戰";
-                    document.getElementById('ritual-title').style.color = "#ff4500";
-                    document.getElementById('ritual-desc').innerHTML = '擊落滾落火球！當巨龍停下時，請<span style="color:#ffd700;font-weight:bold;">擺動身體閃避</span>火焰射線！';
-                    
-                    gameState = 'playing';
-                    gameStarted = true;
-                    spawnFireball();
-                }
-            }, 1000);
+        function handleStartScreenTrigger() {
+            if(gameState === 'cover') { 
+                gameState = 'drawing'; 
+                startScreen.style.backgroundColor = 'transparent'; 
+                document.getElementById('start-prompt').style.display = 'none'; 
+                document.getElementById('instruction').style.display = 'block'; 
+                initTrackerAndAR(); 
+            }
         }
 
-        // 🛠️ 【實際環境過一遍修正點】：全域追蹤器物件完全命名獨立為 wandTracker，杜絕重複宣告
-        tracking.ColorTracker.registerColor('magic_red', function(r, g, b) {
-            return (r > 165 && g < 55 && b < 55); 
-        });
-        const wandTracker = new tracking.ColorTracker(['magic_red']);
-        wandTracker.setMinDimension(7); 
+        startScreen.addEventListener('mousedown', handleStartScreenTrigger);
+        startScreen.addEventListener('touchstart', handleStartScreenTrigger, { passive: true });
+
+        // 100% 黃金基準 ColorTracker 宣告
+        const tracker = new tracking.ColorTracker(['magic_red']);
+        tracker.setMinDimension(7); 
 
         let trackerInitialized = false;
         function initTrackerAndAR() {
@@ -409,7 +255,6 @@
                 video: { facingMode: "user", width: { ideal: 480 }, height: { ideal: 360 } }
             };
 
-            // 100% 複製基準代碼同步喚醒相機
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 navigator.mediaDevices.getUserMedia(videoConstraints)
                     .then(function(stream) {
@@ -420,11 +265,10 @@
                     });
             }
 
-            // 同步啟用追蹤核心
-            tracking.track('#webcam', wandTracker);
+            tracking.track('#webcam', tracker);
 
-            wandTracker.on('track', function(event) {
-                if (isGameOver || event.data.length === 0 || gameState !== 'playing') {
+            tracker.on('track', function(event) {
+                if (isGameOver || event.data.length === 0) {
                     crosshair.hasTracking = false;
                     return;
                 }
@@ -457,7 +301,7 @@
             faceMesh.onResults(onARFaceMeshResults);
 
             async function sendVideoFrame() {
-                if (!isGameOver && gameState === 'playing' && video.readyState === video.HAVE_ENOUGH_DATA) {
+                if (!isGameOver && video.readyState === video.HAVE_ENOUGH_DATA) {
                     await faceMesh.send({ image: video });
                 }
                 requestAnimationFrame(sendVideoFrame);
@@ -476,8 +320,162 @@
             userHatAR.ivY = landmarks[10].y * canvas.height - (canvas.height * 0.12);
         }
 
+        function updateStartScreen() {
+            if (gameStarted && gameState === 'playing') return;
+            if (startCanvas.width !== window.innerWidth || startCanvas.height !== window.innerHeight) resizeCanvases();
+            
+            startCtx.clearRect(0, 0, startCanvas.width, startCanvas.height);
+
+            let W = startCanvas.width; let H = startCanvas.height;
+            let centerX = W / 2; let minDim = Math.min(W, H);
+            let circleCenterY = H * 0.34;
+
+            crosshair.x += (crosshair.targetX - crosshair.x) * 0.45;
+            crosshair.y += (crosshair.targetY - crosshair.y) * 0.45;
+
+            startCtx.save();
+            startCtx.globalAlpha = ritualOpacity;
+
+            if (gameState === 'cover' || gameState === 'success_anim') {
+                if (coronaParticles.length < 60) {
+                    let angle = Math.random() * Math.PI * 2;
+                    let speed = Math.random() * 1.5 + 1; 
+                    coronaParticles.push({
+                        x: centerX + Math.cos(angle) * (minDim * 0.25), y: circleCenterY + Math.sin(angle) * (minDim * 0.25),
+                        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+                        life: Math.random() * 20 + 20, maxLife: 40, size: Math.random() * 15 + 10
+                    });
+                }
+                startCtx.save();
+                startCtx.globalCompositeOperation = 'screen';
+                for (let i = coronaParticles.length - 1; i >= 0; i--) {
+                    let p = coronaParticles[i]; p.x += p.vx; p.y += p.vy; p.life--;
+                    if (p.life <= 0) { coronaParticles.splice(i, 1); continue; }
+                    let ratio = p.life / p.maxLife;
+                    let grad = startCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+                    grad.addColorStop(0, 'rgba(255, 230, 150, ' + ratio + ')');
+                    grad.addColorStop(0.3, 'rgba(255, 90, 0, ' + ratio * 0.8 + ')');
+                    grad.addColorStop(1, 'rgba(0,0,0,0)');
+                    startCtx.beginPath(); startCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    startCtx.fillStyle = grad; startCtx.fill();
+                }
+                startCtx.restore();
+            }
+
+            let fixedSize = minDim * 0.58;
+
+            if (gameState === 'cover') {
+                startCtx.fillStyle = '#000000';
+                startCtx.fillRect(0, 0, W, H);
+
+                startCtx.save(); startCtx.translate(centerX, circleCenterY);
+                circleRotation += 0.004; startCtx.rotate(circleRotation);
+                if (magicCircleImg.complete) startCtx.drawImage(magicCircleImg, -fixedSize / 2, -fixedSize / 2, fixedSize, fixedSize);
+                startCtx.restore();
+            } 
+            else if (gameState === 'drawing') {
+                startCtx.save(); startCtx.translate(centerX, circleCenterY);
+                bg1Rotation -= 0.002; startCtx.rotate(bg1Rotation);
+                if (bg1Img.complete) startCtx.drawImage(bg1Img, -fixedSize / 2, -fixedSize / 2, fixedSize, fixedSize);
+                startCtx.restore();
+
+                if (crosshair.hasTracking && pentagramPoints.length > 0) {
+                    let targetPt = pentagramPoints[nextRequiredPoint];
+                    if (targetPt) {
+                        let distance = Math.sqrt((crosshair.x - targetPt.x)**2 + (crosshair.y - targetPt.y)**2);
+                        if (distance < 45) { 
+                            targetPt.activated = true;
+                            nextRequiredPoint++;
+                            if (nextRequiredPoint >= 5) {
+                                gameState = 'success_anim';
+                            }
+                        }
+                    }
+                }
+
+                if (nextRequiredPoint > 0 && pentagramPoints.length > 0) {
+                    startCtx.save();
+                    startCtx.strokeStyle = 'rgba(0, 210, 255, 0.8)';
+                    startCtx.lineWidth = 6; startCtx.lineCap = 'round'; startCtx.lineJoin = 'round';
+                    startCtx.shadowBlur = 15; startCtx.shadowColor = '#00ffff';
+                    
+                    startCtx.beginPath();
+                    startCtx.moveTo(pentagramPoints[0].x, pentagramPoints[0].y);
+                    for (let k = 1; k < nextRequiredPoint; k++) {
+                        startCtx.lineTo(pentagramPoints[k].x, pentagramPoints[k].y);
+                    }
+                    if (crosshair.hasTracking && nextRequiredPoint < 5) {
+                        startCtx.lineTo(crosshair.x, crosshair.y);
+                    }
+                    startCtx.stroke();
+                    startCtx.restore();
+                }
+
+                pentagramPoints.forEach((pt, index) => {
+                    startCtx.save();
+                    let isCurrent = (index === nextRequiredPoint);
+                    if (pt.activated) {
+                        startCtx.fillStyle = '#00ffff';
+                        startCtx.shadowBlur = 10; startCtx.shadowColor = '#00ffff';
+                        startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 10, 0, Math.PI * 2); startCtx.fill();
+                    } else if (isCurrent) {
+                        let breath = Math.sin(Date.now() * 0.008) * 2;
+                        startCtx.fillStyle = '#0077ff';
+                        startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 12 + breath, 0, Math.PI * 2); startCtx.fill();
+                        startCtx.strokeStyle = '#ffffff'; startCtx.lineWidth = 2;
+                        startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 16 + breath, 0, Math.PI * 2); startCtx.stroke();
+                    } else {
+                        // 🛠️ 【密碼連線渲染修正】：精準補齊 startCtx.fill 的 Canvas 繪圖上下文，修正上一版語法當機缺陷
+                        startCtx.fillStyle = 'rgba(0, 119, 255, 0.25)';
+                        startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 8, 0, Math.PI * 2); startCtx.fill();
+                    }
+                    startCtx.restore();
+                });
+
+                if (crosshair.hasTracking) {
+                    startCtx.save();
+                    startCtx.translate(crosshair.x, crosshair.y);
+                    startCtx.rotate(Date.now() * 0.002);
+                    startCtx.lineWidth = 2; startCtx.strokeStyle = '#00d2ff';
+                    startCtx.beginPath(); startCtx.arc(0, 0, 30, 0, Math.PI * 2); startCtx.setLineDash([4, 4]); startCtx.stroke();
+                    startCtx.restore();
+                }
+            } 
+            else if (gameState === 'success_anim') {
+                circleRotation += 0.06; bg1Rotation -= 0.04;   
+                startCtx.save(); startCtx.translate(centerX, circleCenterY); startCtx.rotate(bg1Rotation);
+                if (bg1Img.complete) startCtx.drawImage(bg1Img, -fixedSize / 2, -fixedSize / 2, fixedSize, fixedSize);
+                startCtx.restore();
+                startCtx.save(); startCtx.translate(centerX, circleCenterY); startCtx.rotate(circleRotation);
+                startCtx.shadowBlur = 40; startCtx.shadowColor = '#ffd700'; 
+                if (magicCircleImg.complete) startCtx.drawImage(magicCircleImg, -fixedSize / 2, -fixedSize / 2, fixedSize, fixedSize);
+                startCtx.restore();
+
+                ritualOpacity -= 0.02;
+                if (ritualOpacity <= 0) {
+                    ritualOpacity = 0; startScreen.style.display = 'none';
+                    triggerCountdown(); 
+                }
+            }
+
+            if (gameState === 'cover') {
+                startCtx.save();
+                let dynamicFontSize = Math.min(36, Math.max(18, minDim * 0.062));
+                startCtx.font = `bold ${dynamicFontSize}px 'Cinzel Decorative', Georgia, serif`;
+                startCtx.textAlign = "center"; startCtx.textBaseline = "middle"; startCtx.letterSpacing = "2px";
+                let textY1 = H * 0.71; let textY2 = textY1 + (dynamicFontSize * 1.25); 
+                startCtx.lineWidth = 2; startCtx.strokeStyle = "#000000";
+                startCtx.strokeText("KINETIC SORCERY", centerX, textY1); startCtx.strokeText("ACADEMY", centerX, textY2);
+                startCtx.fillStyle = "#ffcc00"; startCtx.fillText("KINETIC SORCERY", centerX, textY1); startCtx.fillText("ACADEMY", centerX, textY2);
+                startCtx.restore();
+            }
+
+            startCtx.restore();
+            requestAnimationFrame(updateStartScreen);
+        }
+
         function spawnFireball() {
-            if (isGameOver || gameState !== 'playing') return;
+            if (isGameOver || !gameStarted) return; 
             fireball.x = dragonBoss.x + dragonBoss.width / 2;
             fireball.y = dragonBoss.y + dragonBoss.height * 0.7;
             fireball.size = 2;
@@ -500,9 +498,7 @@
         }
 
         function handleDragonBossAI() {
-            // 🛠️ 防漏警告控制：一旦 GameOver，巨龍控制器直接熔斷，強制不執行火焰切換與計時器減算！
             if (isGameOver) return;
-
             dragonBoss.stateTimer--;
 
             if (dragonBoss.state === 'move') {
@@ -544,7 +540,6 @@
         }
 
         function triggerPlayerDamage() {
-            // 🛠️ 死後二次隔離：死後拒絕重算扣血
             if (isGameOver || invulnerableTimer > 0) return; 
 
             scoreFailed++;
@@ -563,27 +558,7 @@
                 dangerGlowScreen.classList.remove('pulse-effect');
             }, 600);
 
-            if (scoreFailed >= 5) {
-                triggerGameOver();
-            }
-        }
-
-        function drawMagicCrosshair(x, y) {
-            crosshair.rotation += 0.04;
-            let dist = Math.hypot(x - fireball.x, y - fireball.y);
-            if (fireball.active && dist < 100 && fireball.size > 15) {
-                crosshair.targetSize = 25; ctx.strokeStyle = '#ff3333';
-            } else {
-                crosshair.targetSize = 35; ctx.strokeStyle = '#00d2ff';
-            }
-            crosshair.currentSize += (crosshair.targetSize - crosshair.currentSize) * 0.2;
-            let r = crosshair.currentSize;
-
-            ctx.save(); ctx.translate(x, y); ctx.rotate(crosshair.rotation);
-            ctx.lineWidth = 2; ctx.shadowBlur = 4; ctx.shadowColor = ctx.strokeStyle;
-            ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.setLineDash([6, 6]); ctx.stroke();
-            ctx.beginPath(); ctx.rect(-r*0.6, -r*0.6, r*1.2, r*1.2); ctx.setLineDash([]); ctx.lineWidth = 1; ctx.stroke();
-            ctx.restore();
+            if (scoreFailed >= 5) triggerGameOver();
         }
 
         function gameLoop() {
@@ -593,7 +568,7 @@
             }
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            if (gameStarted || isGameOver) {
+            if (gameStarted && gameState === 'playing') {
                 if (invulnerableTimer > 0) invulnerableTimer--;
 
                 crosshair.x += (crosshair.targetX - crosshair.x) * 0.45;
@@ -603,13 +578,12 @@
 
                 handleDragonBossAI();
 
-                for (let i = 0; i < explosions.length; i++) {
+                for (let i = explosions.length - 1; i >= 0; i--) {
                     let p = explosions[i]; p.x += p.vx; p.y += p.vy; p.alpha -= 0.03;
-                    if (p.alpha <= 0) { explosions.splice(i, 1); i--; continue; }
-                    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                    ctx.fillStyle = p.color; ctx.globalAlpha = p.alpha; ctx.fill();
+                    if (p.alpha <= 0) { explosions.splice(i, 1); continue; }
+                    ctx.save(); ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fillStyle = p.color; ctx.globalAlpha = p.alpha; ctx.fill(); ctx.restore();
                 }
-                ctx.globalAlpha = 1.0;
 
                 if (dragonLaser.active) {
                     ctx.save();
@@ -622,7 +596,6 @@
                     if (Math.random() < 0.6) createExplosion(dragonLaser.x + (Math.random() - 0.5) * 20, Math.random() * (canvas.height - dragonLaser.topY) + dragonLaser.topY, true);
                     ctx.restore();
 
-                    // 🛠️ 修正死後判定：isGameOver 為真時，禁止重複觸發射線扣血
                     if (userHatAR.tracked && invulnerableTimer === 0 && !isGameOver) {
                         let hatLeft = userHatAR.x - userHatAR.width / 2;
                         let hatRight = userHatAR.x + userHatAR.width / 2;
@@ -643,7 +616,7 @@
                         gradient.addColorStop(0, '#fff'); gradient.addColorStop(0.2, '#ffdd00'); gradient.addColorStop(0.5, '#ff4500'); gradient.addColorStop(1, 'rgba(255,69,0,0)');
                         ctx.fillStyle = gradient; ctx.arc(fireball.x, fireball.y, fireball.size, 0, Math.PI * 2); ctx.fill();
 
-                        // 💥 基準代碼火球碰撞擊破演算法 - 完全回復
+                        // 黃金基準擊破碰撞
                         if (crosshair.hasTracking && fireball.size > 15) {
                             let distance = Math.sqrt((crosshair.x - fireball.x)**2 + (crosshair.y - fireball.y)**2);
                             if (distance < (fireball.size * 0.7 + crosshair.currentSize)) {
@@ -674,22 +647,28 @@
                         ctx.restore();
                     }
                 }
-
-                if (crosshair.hasTracking) {
-                    drawMagicCrosshair(crosshair.x, crosshair.y);
-                }
             }
+
+            // 無條件在最上層繪製魔杖紅色色彩追蹤準星
+            if (crosshair.hasTracking && (gameState === 'playing' || gameState === 'drawing')) {
+                crosshair.rotation += 0.04;
+                let dist = Math.hypot(crosshair.x - fireball.x, crosshair.y - fireball.y);
+                let strokeColor = (fireball.active && dist < 100 && fireball.size > 15) ? '#ff3333' : '#00d2ff';
+                ctx.save(); ctx.translate(crosshair.x, crosshair.y); ctx.rotate(crosshair.rotation);
+                ctx.lineWidth = 2; ctx.strokeStyle = strokeColor; ctx.shadowBlur = 4; ctx.shadowColor = strokeColor;
+                ctx.beginPath(); ctx.arc(0, 0, crosshair.currentSize, 0, Math.PI * 2); ctx.setLineDash([6, 6]); ctx.stroke();
+                ctx.beginPath(); ctx.rect(-crosshair.currentSize*0.6, -crosshair.currentSize*0.6, crosshair.currentSize*1.2, crosshair.currentSize*1.2); ctx.setLineDash([]); ctx.lineWidth = 1; ctx.stroke();
+                ctx.restore();
+            }
+
             requestAnimationFrame(gameLoop);
         }
 
         function triggerGameOver() {
             isGameOver = true;
             gameStarted = false;
-            
-            // 🛠️ 【結算瞬間清空戰場】：強迫終止火球活躍度與雷射，防止背景繼續扣血與產火球
             fireball.active = false;
             dragonLaser.active = false;
-            
             dangerGlowScreen.style.display = 'none';
             dangerGlowScreen.classList.remove('pulse-effect');
             
@@ -711,6 +690,7 @@
             window.location.reload(true);
         }
 
+        // 核心同步加載時序
         resizeCanvases();
         updateStartScreen();
         gameLoop();
