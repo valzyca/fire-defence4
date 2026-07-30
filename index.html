@@ -170,7 +170,7 @@
         let gameState = 'cover'; 
         let countdownNumber = 3;
 
-        // 100% 黃金基準火球與魔杖準星數據定義
+        // 100% 黃金基準數據對齊
         let fireball = { x: 0, y: 0, size: 5, speedX: 0, speedY: 0, active: false };
         let crosshair = { x: 0, y: 0, targetX: 0, targetY: 0, rotation: 0, targetSize: 35, currentSize: 35, hasTracking: false };
         let explosions = []; 
@@ -180,11 +180,10 @@
         let bg1Img = new Image(); bg1Img.src = "bg-1.png";
         let circleRotation = 0; let bg1Rotation = 0; let ritualOpacity = 1.0; 
 
-        // 密碼錨點狀態宣告
         let pentagramPoints = []; 
         let nextRequiredPoint = 0; 
 
-        // 巨龍與 AR 魔法帽物件
+        // 巨龍與 AR 物件
         let dragonImg = new Image(); dragonImg.src = "dragon head-front.png";
         let hatImg = new Image(); hatImg.src = "CIC-hat.png";
         let dragonBoss = { x: 0, y: 50, width: 140, height: 140, speedX: 2.5, state: 'move', stateTimer: 120, shootCooldown: 0 };
@@ -241,7 +240,7 @@
         startScreen.addEventListener('mousedown', handleStartScreenTrigger);
         startScreen.addEventListener('touchstart', handleStartScreenTrigger, { passive: true });
 
-        // 100% 黃金基準 ColorTracker 宣告
+        // 100% 黃金基準追蹤器實體
         const tracker = new tracking.ColorTracker(['magic_red']);
         tracker.setMinDimension(7); 
 
@@ -293,7 +292,6 @@
                 }
             });
 
-            // MediaPipe Face Mesh 初始化
             const faceMesh = new FaceMesh({
                 locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
             });
@@ -336,7 +334,6 @@
             startCtx.save();
             startCtx.globalAlpha = ritualOpacity;
 
-            // 繪製光暈粒子
             if (gameState === 'cover' || gameState === 'success_anim') {
                 if (coronaParticles.length < 60) {
                     let angle = Math.random() * Math.PI * 2;
@@ -365,7 +362,6 @@
 
             let fixedSize = minDim * 0.58;
 
-            // 封面階段
             if (gameState === 'cover') {
                 startCtx.fillStyle = '#000000';
                 startCtx.fillRect(0, 0, W, H);
@@ -395,7 +391,6 @@
                     }
                 }
 
-                // 藍色雷射密碼連線
                 if (nextRequiredPoint > 0 && pentagramPoints.length > 0) {
                     startCtx.save();
                     startCtx.strokeStyle = 'rgba(0, 210, 255, 0.8)';
@@ -414,7 +409,6 @@
                     startCtx.restore();
                 }
 
-                // 繪製隨機圓環解鎖點
                 pentagramPoints.forEach((pt, index) => {
                     startCtx.save();
                     let isCurrent = (index === nextRequiredPoint);
@@ -430,7 +424,7 @@
                         startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 16 + breath, 0, Math.PI * 2); startCtx.stroke();
                     } else {
                         startCtx.fillStyle = 'rgba(0, 119, 255, 0.25)';
-                        startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 8, 0, Math.PI * 2); startCtx.fill(); // 🛠️ 語法校正點：補上 startCtx. 修正當機
+                        startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 8, 0, Math.PI * 2); startCtx.fill(); // 🛠️ 修正：已補齊 startCtx. 呼叫
                     }
                     startCtx.restore();
                 });
@@ -469,7 +463,7 @@
         }
 
         function spawnFireball() {
-            if (isGameOver || gameState !== 'playing') return; // 🛠️ 修正限制，確保火球順暢發出
+            if (isGameOver || gameState !== 'playing') return; 
             fireball.x = dragonBoss.x + dragonBoss.width / 2;
             fireball.y = dragonBoss.y + dragonBoss.height * 0.7;
             fireball.size = 2;
@@ -610,7 +604,6 @@
                         gradient.addColorStop(0, '#fff'); gradient.addColorStop(0.2, '#ffdd00'); gradient.addColorStop(0.5, '#ff4500'); gradient.addColorStop(1, 'rgba(255,69,0,0)');
                         ctx.fillStyle = gradient; ctx.arc(fireball.x, fireball.y, fireball.size, 0, Math.PI * 2); ctx.fill();
 
-                        // 黃金基準擊破碰撞
                         if (crosshair.hasTracking && fireball.size > 15) {
                             let distance = Math.sqrt((crosshair.x - fireball.x)**2 + (crosshair.y - fireball.y)**2);
                             if (distance < (fireball.size * 0.7 + crosshair.currentSize)) {
@@ -643,7 +636,6 @@
                 }
             }
 
-            // 無條件在最上層繪製色彩追蹤準星
             if (crosshair.hasTracking && (gameState === 'playing' || gameState === 'drawing')) {
                 crosshair.rotation += 0.04;
                 let dist = Math.hypot(crosshair.x - fireball.x, crosshair.y - fireball.y);
@@ -684,7 +676,7 @@
             window.location.reload(true);
         }
 
-        // 核心同步加載時序
+        // 核心加載時序
         resizeCanvases();
         updateStartScreen();
         gameLoop();
