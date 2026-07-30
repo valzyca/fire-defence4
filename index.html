@@ -33,7 +33,7 @@
         #start-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10;
             background-color: #000; display: flex; flex-direction: column; justify-content: center; align-items: center;
-            cursor: pointer; pointer-events: auto;
+            cursor: pointer; pointer-events: auto; transition: background-color 0.4s ease;
         }
         #start-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 11; pointer-events: none; }
         
@@ -229,7 +229,7 @@
         }
         window.addEventListener('resize', resizeCanvases);
 
-        // 觸控點擊換場閘門
+        // 點擊喚醒閘門
         function handleStartScreenTrigger(e) {
             if (e) { e.preventDefault(); e.stopPropagation(); }
             if(gameState === 'cover') { 
@@ -337,10 +337,13 @@
             crosshair.x += (crosshair.targetX - crosshair.x) * 0.45;
             crosshair.y += (crosshair.targetY - crosshair.y) * 0.45;
 
-            startCtx.save();
-            startCtx.globalAlpha = ritualOpacity;
+            // 🛠️ 【核心修復一】：將黑背景與粒子系統移出條件分支，保證不論什麼狀態下黑底與火球飛散特效都 100% 渲染！
+            if (gameState === 'cover') {
+                startCtx.fillStyle = '#000000';
+                startCtx.fillRect(0, 0, W, H);
+            }
 
-            // 火球向四周飛散粒子更新系統
+            // 火球向四周飛散粒子物理系統
             if (gameState === 'cover' || gameState === 'drawing' || gameState === 'success_anim') {
                 if (coronaParticles.length < 75) {
                     let angle = Math.random() * Math.PI * 2;
@@ -385,11 +388,11 @@
 
             let fixedSize = minDim * 0.58;
 
-            // 封面階段
-            if (gameState === 'cover') {
-                startCtx.fillStyle = '#000000';
-                startCtx.fillRect(0, 0, W, H);
+            startCtx.save();
+            startCtx.globalAlpha = ritualOpacity;
 
+            // 封面底圖渲染
+            if (gameState === 'cover') {
                 if (magicCircleImg.complete && magicCircleImg.width > 0) {
                     startCtx.save(); startCtx.translate(centerX, circleCenterY);
                     circleRotation += 0.004; startCtx.rotate(circleRotation);
@@ -403,13 +406,7 @@
                 }
             } 
             else if (gameState === 'drawing') {
-                // 核心安全防護鎖
-                if (pentagramPoints.length === 0) {
-                    startCtx.restore();
-                    requestAnimationFrame(updateStartScreen);
-                    return;
-                }
-
+                // 🛠️ 【核心修復二】：移除致命的 return 阻斷。改用安全區塊包覆，就算陣列未滿也絕對不中斷渲染循環！
                 if (bg1Img.complete && bg1Img.width > 0) {
                     startCtx.save(); startCtx.translate(centerX, circleCenterY);
                     bg1Rotation -= 0.002; startCtx.rotate(bg1Rotation);
@@ -417,60 +414,61 @@
                     startCtx.restore();
                 }
 
-                if (crosshair.hasTracking) {
-                    let targetPt = pentagramPoints[nextRequiredPoint];
-                    if (targetPt) {
-                        let distance = Math.sqrt((crosshair.x - targetPt.x)**2 + (crosshair.y - targetPt.y)**2);
-                        if (distance < 45) { 
-                            targetPt.activated = true;
-                            nextRequiredPoint++;
-                            if (nextRequiredPoint >= 5) {
-                                gameState = 'success_anim';
+                if (pentagramPoints.length > 0) {
+                    if (crosshair.hasTracking) {
+                        let targetPt = pentagramPoints[nextRequiredPoint];
+                        if (targetPt) {
+                            let distance = Math.sqrt((crosshair.x - targetPt.x)**2 + (crosshair.y - targetPt.y)**2);
+                            if (distance < 45) { 
+                                targetPt.activated = true;
+                                nextRequiredPoint++;
+                                if (nextRequiredPoint >= 5) {
+                                    gameState = 'success_anim';
+                                }
                             }
                         }
                     }
-                }
 
-                // 藍色雷射密碼連線
-                if (nextRequiredPoint > 0) {
-                    startCtx.save();
-                    startCtx.strokeStyle = 'rgba(0, 210, 255, 0.8)';
-                    startCtx.lineWidth = 6; startCtx.lineCap = 'round'; startCtx.lineJoin = 'round';
-                    startCtx.shadowBlur = 15; startCtx.shadowColor = '#00ffff';
-                    
-                    startCtx.beginPath();
-                    startCtx.moveTo(pentagramPoints[0].x, pentagramPoints[0].y);
-                    for (let k = 1; k < nextRequiredPoint; k++) {
-                        startCtx.lineTo(pentagramPoints[k].x, pentagramPoints[k].y);
+                    // 藍色雷射密碼連線
+                    if (nextRequiredPoint > 0) {
+                        startCtx.save();
+                        startCtx.strokeStyle = 'rgba(0, 210, 255, 0.8)';
+                        startCtx.lineWidth = 6; startCtx.lineCap = 'round'; startCtx.lineJoin = 'round';
+                        startCtx.shadowBlur = 15; startCtx.shadowColor = '#00ffff';
+                        
+                        startCtx.beginPath();
+                        startCtx.moveTo(pentagramPoints[0].x, pentagramPoints[0].y);
+                        for (let k = 1; k < nextRequiredPoint; k++) {
+                            startCtx.lineTo(pentagramPoints[k].x, pentagramPoints[k].y);
+                        }
+                        if (crosshair.hasTracking && nextRequiredPoint < 5) {
+                            startCtx.lineTo(crosshair.x, crosshair.y);
+                        }
+                        startCtx.stroke();
+                        startCtx.restore();
                     }
-                    if (crosshair.hasTracking && nextRequiredPoint < 5) {
-                        startCtx.lineTo(crosshair.x, crosshair.y);
-                    }
-                    startCtx.stroke();
-                    startCtx.restore();
-                }
 
-                // 繪製隨機圓環解鎖點
-                pentagramPoints.forEach((pt, index) => {
-                    startCtx.save();
-                    let isCurrent = (index === nextRequiredPoint);
-                    if (pt.activated) {
-                        startCtx.fillStyle = '#00ffff';
-                        startCtx.shadowBlur = 10; startCtx.shadowColor = '#00ffff';
-                        startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 10, 0, Math.PI * 2); startCtx.fill();
-                    } else if (isCurrent) {
-                        let breath = Math.sin(Date.now() * 0.008) * 2;
-                        startCtx.fillStyle = '#0077ff';
-                        startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 12 + breath, 0, Math.PI * 2); startCtx.fill();
-                        startCtx.strokeStyle = '#ffffff'; startCtx.lineWidth = 2;
-                        startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 16 + breath, 0, Math.PI * 2); startCtx.stroke();
-                    } else {
-                        startCtx.fillStyle = 'rgba(0, 119, 255, 0.25)';
-                        startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 8, 0, Math.PI * 2); 
-                        startCtx.fill(); // 🛠️ 終極修復：100% 補上 startCtx.fill();
-                    }
-                    startCtx.restore();
-                });
+                    // 繪製隨機圓環解鎖點
+                    pentagramPoints.forEach((pt, index) => {
+                        startCtx.save();
+                        let isCurrent = (index === nextRequiredPoint);
+                        if (pt.activated) {
+                            startCtx.fillStyle = '#00ffff';
+                            startCtx.shadowBlur = 10; startCtx.shadowColor = '#00ffff';
+                            startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 10, 0, Math.PI * 2); startCtx.fill();
+                        } else if (isCurrent) {
+                            let breath = Math.sin(Date.now() * 0.008) * 2;
+                            startCtx.fillStyle = '#0077ff';
+                            startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 12 + breath, 0, Math.PI * 2); startCtx.fill();
+                            startCtx.strokeStyle = '#ffffff'; startCtx.lineWidth = 2;
+                            startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 16 + breath, 0, Math.PI * 2); startCtx.stroke();
+                        } else {
+                            startCtx.fillStyle = 'rgba(0, 119, 255, 0.25)';
+                            startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 8, 0, Math.PI * 2); startCtx.fill();
+                        }
+                        startCtx.restore();
+                    });
+                }
             } 
             else if (gameState === 'success_anim') {
                 circleRotation += 0.06; bg1Rotation -= 0.04;   
@@ -512,7 +510,7 @@
         function spawnFireball() {
             if (isGameOver || gameState !== 'playing') return; 
             fireball.x = dragonBoss.x + dragonBoss.width / 2;
-            fireball.y = dragonBoss.y + dragonBoss.height * 0.55; // 嘴部造型校正
+            fireball.y = dragonBoss.y + dragonBoss.height * 0.55; 
             fireball.size = 2;
             
             let angle = Math.PI / 2 + (Math.random() - 0.5) * 0.5; 
@@ -560,7 +558,7 @@
                     dragonBoss.stateTimer = 100; 
                     dragonLaser.active = true;
                     dragonLaser.x = dragonBoss.x + dragonBoss.width / 2;
-                    dragonLaser.topY = dragonBoss.y + dragonBoss.height * 0.55; // 嘴部造型校正
+                    dragonLaser.topY = dragonBoss.y + dragonBoss.height * 0.55; 
                 }
             } 
             else if (dragonBoss.state === 'laser') {
