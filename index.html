@@ -29,15 +29,15 @@
             border-style: solid; border-width: 40px; border-image: url('stone carving.png') 250 repeat;
         }
         
-        /* 初始主畫面 Cover 層 - 確保 pointer-events 正常接收點擊 */
+        /* 初始主畫面 Cover 層 */
         #start-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10;
             background-color: #000; display: flex; flex-direction: column; justify-content: center; align-items: center;
-            transition: opacity 0.5s ease; cursor: pointer; pointer-events: auto;
+            cursor: pointer; pointer-events: auto;
         }
         #start-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 11; pointer-events: none; }
         
-        /* UI 層文字全面停用滑鼠事件，強迫點擊訊號 100% 穿透至底層 */
+        /* 文字層停用事件，強迫訊號向下穿透 */
         #start-ui { position: relative; z-index: 12; text-align: center; pointer-events: none; width: 100%; height: 100%; }
         
         #start-prompt { 
@@ -173,7 +173,7 @@
         let gameState = 'cover'; 
         let countdownNumber = 3;
 
-        // 100% 黃金基準火球與魔杖準星數據定義
+        // 黃金基準變數對齊
         let fireball = { x: 0, y: 0, size: 5, speedX: 0, speedY: 0, active: false };
         let crosshair = { x: 0, y: 0, targetX: 0, targetY: 0, rotation: 0, targetSize: 35, currentSize: 35, hasTracking: false };
         let explosions = []; 
@@ -183,11 +183,10 @@
         let bg1Img = new Image(); bg1Img.src = "bg-1.png";
         let circleRotation = 0; let bg1Rotation = 0; let ritualOpacity = 1.0; 
 
-        // 密碼錨點狀態宣告
         let pentagramPoints = []; 
         let nextRequiredPoint = 0; 
 
-        // 巨龍與 AR 魔法帽物件
+        // 巨龍與 AR 魔法帽
         let dragonImg = new Image(); dragonImg.src = "dragon head-front.png";
         let hatImg = new Image(); hatImg.src = "CIC-hat.png";
         let dragonBoss = { x: 0, y: 50, width: 140, height: 140, speedX: 2.5, state: 'move', stateTimer: 120, shootCooldown: 0 };
@@ -229,7 +228,7 @@
         }
         window.addEventListener('resize', resizeCanvases);
 
-        // 🛠️ 【事件重構】：直接掛載在最外層 startScreen 容器上，徹底解決行動端點擊穿透死鎖
+        // 點擊喚醒閘門
         function handleStartScreenTrigger(e) {
             if (e) { e.preventDefault(); e.stopPropagation(); }
             if(gameState === 'cover') { 
@@ -244,7 +243,7 @@
         startScreen.addEventListener('click', handleStartScreenTrigger);
         startScreen.addEventListener('touchstart', handleStartScreenTrigger, { passive: false });
 
-        // 100% 黃金基準 ColorTracker 核心
+        // 100% 黃金基準追蹤核心
         const tracker = new tracking.ColorTracker(['magic_red']);
         tracker.setMinDimension(7); 
 
@@ -296,19 +295,22 @@
                 }
             });
 
-            const faceMesh = new FaceMesh({
-                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-            });
-            faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
-            faceMesh.onResults(onARFaceMeshResults);
+            // 🛠️ 【核心除錯點】：全面使用 window.FaceMesh 保護阻斷線，確保行動端 100% 順暢加載！
+            if (window.FaceMesh) {
+                const faceMesh = new window.FaceMesh({
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+                });
+                faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+                faceMesh.onResults(onARFaceMeshResults);
 
-            async function sendVideoFrame() {
-                if (!isGameOver && video.readyState === video.HAVE_ENOUGH_DATA) {
-                    await faceMesh.send({ image: video });
+                async function sendVideoFrame() {
+                    if (!isGameOver && video.readyState === video.HAVE_ENOUGH_DATA) {
+                        await faceMesh.send({ image: video });
+                    }
+                    requestAnimationFrame(sendVideoFrame);
                 }
-                requestAnimationFrame(sendVideoFrame);
+                sendVideoFrame();
             }
-            sendVideoFrame();
         }
 
         function onARFaceMeshResults(results) {
@@ -367,12 +369,11 @@
 
             let fixedSize = minDim * 0.58;
 
-            // 封面階段
+            // 封面渲染防護
             if (gameState === 'cover') {
                 startCtx.fillStyle = '#000000';
                 startCtx.fillRect(0, 0, W, H);
 
-                // 🛠️ 【素材安全預載鎖】：確保圖片加載完成後才渲染，否則用金色光圈墊底，100% 防止後台崩潰
                 if (magicCircleImg.complete && magicCircleImg.width > 0) {
                     startCtx.save(); startCtx.translate(centerX, circleCenterY);
                     circleRotation += 0.004; startCtx.rotate(circleRotation);
@@ -386,7 +387,7 @@
                 }
             } 
             else if (gameState === 'drawing') {
-                // 🛠️ *核心安全防護鎖*：如果隨機點位陣列為空，原地跳出不執行 undefined
+                // 🛠 *核心安全防護鎖*：如果隨機點位陣列為空，原地跳出不執行 undefined
                 if (pentagramPoints.length === 0) {
                     startCtx.restore();
                     requestAnimationFrame(updateStartScreen);
