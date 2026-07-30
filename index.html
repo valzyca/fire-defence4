@@ -33,7 +33,7 @@
         #start-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10;
             background-color: #000; display: flex; flex-direction: column; justify-content: center; align-items: center;
-            cursor: pointer; pointer-events: auto; transition: background-color 0.4s ease;
+            cursor: pointer; pointer-events: auto;
         }
         #start-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 11; pointer-events: none; }
         
@@ -344,30 +344,45 @@
                 startCtx.fillRect(0, 0, W, H);
             }
 
-            // 🛠️ 【核心修正二】：將史詩級金色火球飛散特效直接移出 gameState 條件區。
-            // 只要圖片沒加載完成，它至少會先畫黑底垫底，100% 免疫黑屏卡死！
-            if (startCtx && (gameState === 'cover' || gameState === 'drawing' || gameState === 'success_anim')) {
-                if (coronaParticles.length < 80) {
+            // 火球向四周飛散粒子系統動態更新
+            if (gameState === 'cover' || gameState === 'drawing' || gameState === 'success_anim') {
+                if (coronaParticles.length < 75) {
                     let angle = Math.random() * Math.PI * 2;
-                    let speed = Math.random() * 2.5 + 1.5; 
+                    let speed = Math.random() * 3 + 2; 
                     coronaParticles.push({
-                        x: centerX + Math.cos(angle) * (minDim * 0.25), y: circleCenterY + Math.sin(angle) * (minDim * 0.25),
-                        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-                        life: Math.random() * 25 + 25, maxLife: 50, size: Math.random() * 15 + 9
+                        x: centerX + Math.cos(angle) * (minDim * 0.25), 
+                        y: circleCenterY + Math.sin(angle) * (minDim * 0.25),
+                        vx: Math.cos(angle) * speed, 
+                        vy: Math.sin(angle) * speed,
+                        life: Math.random() * 25 + 25, 
+                        maxLife: 50, 
+                        size: Math.random() * 14 + 8
                     });
                 }
+
                 startCtx.save();
                 startCtx.globalCompositeOperation = 'screen';
                 for (let i = coronaParticles.length - 1; i >= 0; i--) {
-                    let p = coronaParticles[i]; p.x += p.vx; p.y += p.vy; p.life--;
-                    if (p.life <= 0) { coronaParticles.splice(i, 1); continue; }
+                    let p = coronaParticles[i]; 
+                    p.x += p.vx; 
+                    p.y += p.vy; 
+                    p.life--;
+                    
+                    if (p.life <= 0) { 
+                        coronaParticles.splice(i, 1); 
+                        continue; 
+                    }
+                    
                     let ratio = p.life / p.maxLife;
                     let grad = startCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
                     grad.addColorStop(0, 'rgba(255, 235, 170, ' + ratio + ')');
-                    grad.addColorStop(0.3, 'rgba(255, 90, 0, ' + ratio * 0.8 + ')');
+                    grad.addColorStop(0.3, 'rgba(255, 80, 0, ' + ratio * 0.8 + ')');
                     grad.addColorStop(1, 'rgba(255, 0, 0, 0)');
-                    startCtx.beginPath(); startCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                    startCtx.fillStyle = grad; startCtx.fill();
+                    
+                    startCtx.beginPath(); 
+                    startCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    startCtx.fillStyle = grad; 
+                    startCtx.fill();
                 }
                 startCtx.restore();
             }
@@ -385,7 +400,6 @@
                     startCtx.drawImage(magicCircleImg, -fixedSize / 2, -fixedSize / 2, fixedSize, fixedSize);
                     startCtx.restore();
                 } else {
-                    // 如果底圖沒出來，至少畫個金色光圈墊底
                     startCtx.save();
                     startCtx.strokeStyle = '#ffd700'; startCtx.lineWidth = 3; startCtx.shadowBlur = 15; startCtx.shadowColor = '#ff4500';
                     startCtx.beginPath(); startCtx.arc(centerX, circleCenterY, fixedSize / 2, 0, Math.PI * 2); startCtx.stroke();
@@ -393,8 +407,13 @@
                 }
             } 
             else if (gameState === 'drawing') {
-                // 🛠️ 【核心修正三】：完全移除這裡致命的 return!
-                // 只要 gameState 變更，不論隨機點陣列初始化完了沒，程式碼絕對不能「return」，否則下一幀就會因為條件無法滿足而再次空轉黑屏。
+                // 🛠 *核心安全防護鎖*：如果隨機點位陣列為空，原地跳出不執行 undefined
+                if (pentagramPoints.length === 0) {
+                    startCtx.restore();
+                    requestAnimationFrame(updateStartScreen);
+                    return;
+                }
+
                 if (bg1Img.complete && bg1Img.width > 0) {
                     startCtx.save(); startCtx.translate(centerX, circleCenterY);
                     bg1Rotation -= 0.002; startCtx.rotate(bg1Rotation);
@@ -402,62 +421,60 @@
                     startCtx.restore();
                 }
 
-                // 只有在陣列真正準備好了，才執行碰撞偵測與連線
-                if (pentagramPoints.length === 5) {
-                    if (crosshair.hasTracking) {
-                        let targetPt = pentagramPoints[nextRequiredPoint];
-                        if (targetPt) {
-                            let distance = Math.sqrt((crosshair.x - targetPt.x)**2 + (crosshair.y - targetPt.y)**2);
-                            if (distance < 45) { 
-                                targetPt.activated = true;
-                                nextRequiredPoint++;
-                                if (nextRequiredPoint >= 5) {
-                                    gameState = 'success_anim';
-                                }
+                if (crosshair.hasTracking) {
+                    let targetPt = pentagramPoints[nextRequiredPoint];
+                    if (targetPt) {
+                        let distance = Math.sqrt((crosshair.x - targetPt.x)**2 + (crosshair.y - targetPt.y)**2);
+                        if (distance < 45) { 
+                            targetPt.activated = true;
+                            nextRequiredPoint++;
+                            if (nextRequiredPoint >= 5) {
+                                gameState = 'success_anim';
                             }
                         }
                     }
-
-                    // 藍色雷射密碼連線
-                    if (nextRequiredPoint > 0) {
-                        startCtx.save();
-                        startCtx.strokeStyle = 'rgba(0, 210, 255, 0.8)';
-                        startCtx.lineWidth = 6; startCtx.lineCap = 'round'; startCtx.lineJoin = 'round';
-                        startCtx.shadowBlur = 15; startCtx.shadowColor = '#00ffff';
-                        
-                        startCtx.beginPath();
-                        startCtx.moveTo(pentagramPoints[0].x, pentagramPoints[0].y);
-                        for (let k = 1; k < nextRequiredPoint; k++) {
-                            startCtx.lineTo(pentagramPoints[k].x, pentagramPoints[k].y);
-                        }
-                        if (crosshair.hasTracking && nextRequiredPoint < 5) {
-                            startCtx.lineTo(crosshair.x, crosshair.y);
-                        }
-                        startCtx.stroke();
-                        startCtx.restore();
-                    }
-
-                    // 繪製隨機圓環解鎖點
-                    pentagramPoints.forEach((pt, index) => {
-                        startCtx.save();
-                        let isCurrent = (index === nextRequiredPoint);
-                        if (pt.activated) {
-                            startCtx.fillStyle = '#00ffff';
-                            startCtx.shadowBlur = 10; startCtx.shadowColor = '#00ffff';
-                            startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 10, 0, Math.PI * 2); startCtx.fill();
-                        } else if (isCurrent) {
-                            let breath = Math.sin(Date.now() * 0.008) * 2;
-                            startCtx.fillStyle = '#0077ff';
-                            startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 12 + breath, 0, Math.PI * 2); startCtx.fill();
-                            startCtx.strokeStyle = '#ffffff'; startCtx.lineWidth = 2;
-                            startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 16 + breath, 0, Math.PI * 2); startCtx.stroke();
-                        } else {
-                            startCtx.fillStyle = 'rgba(0, 119, 255, 0.25)';
-                            startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 8, 0, Math.PI * 2); startCtx.fill();
-                        }
-                        startCtx.restore();
-                    });
                 }
+
+                // 藍色雷射密碼連線
+                if (nextRequiredPoint > 0) {
+                    startCtx.save();
+                    startCtx.strokeStyle = 'rgba(0, 210, 255, 0.8)';
+                    startCtx.lineWidth = 6; startCtx.lineCap = 'round'; startCtx.lineJoin = 'round';
+                    startCtx.shadowBlur = 15; startCtx.shadowColor = '#00ffff';
+                    
+                    startCtx.beginPath();
+                    startCtx.moveTo(pentagramPoints[0].x, pentagramPoints[0].y);
+                    for (let k = 1; k < nextRequiredPoint; k++) {
+                        startCtx.lineTo(pentagramPoints[k].x, pentagramPoints[k].y);
+                    }
+                    if (crosshair.hasTracking && nextRequiredPoint < 5) {
+                        startCtx.lineTo(crosshair.x, crosshair.y);
+                    }
+                    startCtx.stroke();
+                    startCtx.restore();
+                }
+
+                // 繪製隨機圓環解鎖點
+                pentagramPoints.forEach((pt, index) => {
+                    startCtx.save();
+                    let isCurrent = (index === nextRequiredPoint);
+                    if (pt.activated) {
+                        startCtx.fillStyle = '#00ffff';
+                        startCtx.shadowBlur = 10; startCtx.shadowColor = '#00ffff';
+                        startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 10, 0, Math.PI * 2); startCtx.fill();
+                    } else if (isCurrent) {
+                        let breath = Math.sin(Date.now() * 0.008) * 2;
+                        startCtx.fillStyle = '#0077ff';
+                        startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 12 + breath, 0, Math.PI * 2); startCtx.fill();
+                        startCtx.strokeStyle = '#ffffff'; startCtx.lineWidth = 2;
+                        startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 16 + breath, 0, Math.PI * 2); startCtx.stroke();
+                    } else {
+                        startCtx.fillStyle = 'rgba(0, 119, 255, 0.25)';
+                        startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 8, 0, Math.PI * 2); 
+                        startCtx.fill(); // 🛠️ 終極修復：100% 補上 startCtx.fill();
+                    }
+                    startCtx.restore();
+                });
             } 
             else if (gameState === 'success_anim') {
                 circleRotation += 0.06; bg1Rotation -= 0.04;   
@@ -499,7 +516,7 @@
         function spawnFireball() {
             if (isGameOver || gameState !== 'playing') return; 
             fireball.x = dragonBoss.x + dragonBoss.width / 2;
-            fireball.y = dragonBoss.y + dragonBoss.height * 0.55; 
+            fireball.y = dragonBoss.y + dragonBoss.height * 0.55; // 嘴部火焰造型中心
             fireball.size = 2;
             
             let angle = Math.PI / 2 + (Math.random() - 0.5) * 0.5; 
@@ -547,7 +564,7 @@
                     dragonBoss.stateTimer = 100; 
                     dragonLaser.active = true;
                     dragonLaser.x = dragonBoss.x + dragonBoss.width / 2;
-                    dragonLaser.topY = dragonBoss.y + dragonBoss.height * 0.55; 
+                    dragonLaser.topY = dragonBoss.y + dragonBoss.height * 0.55; // 嘴部火焰造型中心
                 }
             } 
             else if (dragonBoss.state === 'laser') {
