@@ -29,18 +29,21 @@
             border-style: solid; border-width: 40px; border-image: url('stone carving.png') 250 repeat;
         }
         
-        /* 初始主畫面 Cover 層 */
+        /* 初始主畫面 Cover 層 - 確保 pointer-events 正常接收點擊 */
         #start-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10;
             background-color: #000; display: flex; flex-direction: column; justify-content: center; align-items: center;
-            transition: opacity 0.5s ease;
+            transition: opacity 0.5s ease; cursor: pointer; pointer-events: auto;
         }
         #start-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 11; pointer-events: none; }
+        
+        /* UI 層文字全面停用滑鼠事件，強迫點擊訊號 100% 穿透至底層 */
         #start-ui { position: relative; z-index: 12; text-align: center; pointer-events: none; width: 100%; height: 100%; }
         
         #start-prompt { 
             position: absolute; left: 50%; top: 61%; transform: translate(-50%, -50%); width: 100%;
             font-size: clamp(13px, 2.2vh, 20px); color: #ffd700; text-shadow: 0 0 8px #ff4500, 0 0 15px #ff0000; animation: pulseGlow 2s infinite ease-in-out; font-weight: bold; letter-spacing: 3px; margin: 0;
+            pointer-events: none;
         }
 
         @keyframes pulseGlow { 0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(0.97); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.03); } }
@@ -101,7 +104,7 @@
     <!-- 實時鏡頭 -->
     <video id="webcam" preload autoplay loop muted playsinline></video>
 
-    <!-- 初始主畫面 -->
+    <!-- 初始主畫面容器 -->
     <div id="start-screen">
         <canvas id="start-canvas"></canvas>
         <div id="start-ui">
@@ -222,13 +225,13 @@
             startCanvas.width = window.innerWidth;
             startCanvas.height = window.innerHeight;
             dragonBoss.x = canvas.width / 2 - dragonBoss.width / 2;
-            
-            // 🛠️ 確保在此處安全產生隨機點位
             generateRandomCirclePoints();
         }
         window.addEventListener('resize', resizeCanvases);
 
-        function handleStartScreenTrigger() {
+        // 🛠️ 【事件重構】：直接掛載在最外層 startScreen 容器上，徹底解決行動端點擊穿透死鎖
+        function handleStartScreenTrigger(e) {
+            if (e) { e.preventDefault(); e.stopPropagation(); }
             if(gameState === 'cover') { 
                 gameState = 'drawing'; 
                 startScreen.style.backgroundColor = 'transparent'; 
@@ -238,10 +241,10 @@
             }
         }
 
-        startScreen.addEventListener('mousedown', handleStartScreenTrigger);
-        startScreen.addEventListener('touchstart', handleStartScreenTrigger, { passive: true });
+        startScreen.addEventListener('click', handleStartScreenTrigger);
+        startScreen.addEventListener('touchstart', handleStartScreenTrigger, { passive: false });
 
-        // 100% 黃金基準 ColorTracker 宣告
+        // 100% 黃金基準 ColorTracker 核心
         const tracker = new tracking.ColorTracker(['magic_red']);
         tracker.setMinDimension(7); 
 
@@ -369,23 +372,33 @@
                 startCtx.fillStyle = '#000000';
                 startCtx.fillRect(0, 0, W, H);
 
-                startCtx.save(); startCtx.translate(centerX, circleCenterY);
-                circleRotation += 0.004; startCtx.rotate(circleRotation);
-                if (magicCircleImg.complete) startCtx.drawImage(magicCircleImg, -fixedSize / 2, -fixedSize / 2, fixedSize, fixedSize);
-                startCtx.restore();
+                // 🛠️ 【素材安全預載鎖】：確保圖片加載完成後才渲染，否則用金色光圈墊底，100% 防止後台崩潰
+                if (magicCircleImg.complete && magicCircleImg.width > 0) {
+                    startCtx.save(); startCtx.translate(centerX, circleCenterY);
+                    circleRotation += 0.004; startCtx.rotate(circleRotation);
+                    startCtx.drawImage(magicCircleImg, -fixedSize / 2, -fixedSize / 2, fixedSize, fixedSize);
+                    startCtx.restore();
+                } else {
+                    startCtx.save();
+                    startCtx.strokeStyle = '#ffd700'; startCtx.lineWidth = 3; startCtx.shadowBlur = 15; startCtx.shadowColor = '#ff4500';
+                    startCtx.beginPath(); startCtx.arc(centerX, circleCenterY, fixedSize / 2, 0, Math.PI * 2); startCtx.stroke();
+                    startCtx.restore();
+                }
             } 
             else if (gameState === 'drawing') {
-                // 🛠 *核心安全防護鎖*：如果隨機點位還沒準備好，原地跳出，絕不執行後續 undefined 運算
+                // 🛠️ *核心安全防護鎖*：如果隨機點位陣列為空，原地跳出不執行 undefined
                 if (pentagramPoints.length === 0) {
                     startCtx.restore();
                     requestAnimationFrame(updateStartScreen);
                     return;
                 }
 
-                startCtx.save(); startCtx.translate(centerX, circleCenterY);
-                bg1Rotation -= 0.002; startCtx.rotate(bg1Rotation);
-                if (bg1Img.complete) startCtx.drawImage(bg1Img, -fixedSize / 2, -fixedSize / 2, fixedSize, fixedSize);
-                startCtx.restore();
+                if (bg1Img.complete && bg1Img.width > 0) {
+                    startCtx.save(); startCtx.translate(centerX, circleCenterY);
+                    bg1Rotation -= 0.002; startCtx.rotate(bg1Rotation);
+                    startCtx.drawImage(bg1Img, -fixedSize / 2, -fixedSize / 2, fixedSize, fixedSize);
+                    startCtx.restore();
+                }
 
                 if (crosshair.hasTracking) {
                     let targetPt = pentagramPoints[nextRequiredPoint];
@@ -436,20 +449,24 @@
                         startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 16 + breath, 0, Math.PI * 2); startCtx.stroke();
                     } else {
                         startCtx.fillStyle = 'rgba(0, 119, 255, 0.25)';
-                        startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 8, 0, Math.PI * 2); startCtx.fill(); // 🛠 語法完全補齊修正
+                        startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 8, 0, Math.PI * 2); startCtx.fill();
                     }
                     startCtx.restore();
                 });
             } 
             else if (gameState === 'success_anim') {
                 circleRotation += 0.06; bg1Rotation -= 0.04;   
-                startCtx.save(); startCtx.translate(centerX, circleCenterY); startCtx.rotate(bg1Rotation);
-                if (bg1Img.complete) startCtx.drawImage(bg1Img, -fixedSize / 2, -fixedSize / 2, fixedSize, fixedSize);
-                startCtx.restore();
-                startCtx.save(); startCtx.translate(centerX, circleCenterY); startCtx.rotate(circleRotation);
-                startCtx.shadowBlur = 40; startCtx.shadowColor = '#ffd700'; 
-                if (magicCircleImg.complete) startCtx.drawImage(magicCircleImg, -fixedSize / 2, -fixedSize / 2, fixedSize, fixedSize);
-                startCtx.restore();
+                if (bg1Img.complete) {
+                    startCtx.save(); startCtx.translate(centerX, circleCenterY); startCtx.rotate(bg1Rotation);
+                    startCtx.drawImage(bg1Img, -fixedSize / 2, -fixedSize / 2, fixedSize, fixedSize);
+                    startCtx.restore();
+                }
+                if (magicCircleImg.complete) {
+                    startCtx.save(); startCtx.translate(centerX, circleCenterY); startCtx.rotate(circleRotation);
+                    startCtx.shadowBlur = 40; startCtx.shadowColor = '#ffd700'; 
+                    startCtx.drawImage(magicCircleImg, -fixedSize / 2, -fixedSize / 2, fixedSize, fixedSize);
+                    startCtx.restore();
+                }
 
                 ritualOpacity -= 0.02;
                 if (ritualOpacity <= 0) {
