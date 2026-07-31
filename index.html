@@ -296,7 +296,7 @@
                 }
             });
 
-            // MediaPipe FaceMesh：100% 幾何咬合
+            // MediaPipe：100% 幾何咬合
             if (window.FaceMesh) {
                 const faceMesh = new window.FaceMesh({
                     locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
@@ -328,12 +328,9 @@
         // 初始主畫面渲染循環：百分之百免疫卡死與漏光
         function updateStartScreen() {
             if (gameStarted && gameState === 'playing') return;
-            // 🛠️ 【零公差防禦重構一】：移除危險的全局 ClearRect，移入條件分支。
-            // startCtx.clearRect(0, 0, startCanvas.width, startCanvas.height); 移走了
-
             if (startCanvas.width !== window.innerWidth || startCanvas.height !== window.innerHeight) resizeCanvases();
             
-            // startCtx.clearRect(0, 0, startCanvas.width, startCanvas.height); // 這裡移進來了
+            startCtx.clearRect(0, 0, startCanvas.width, startCanvas.height);
 
             let W = startCanvas.width; let H = startCanvas.height;
             let centerX = W / 2; let minDim = Math.min(W, H);
@@ -342,12 +339,12 @@
             crosshair.x += (crosshair.targetX - crosshair.x) * 0.45;
             crosshair.y += (crosshair.targetY - crosshair.y) * 0.45;
 
-            // 🛠️ 【零公差防禦重構二】：火球粒子系統向四周飛散特效動態更新
-            // 將粒子繪製 fallback 直接暴露在 `gameState === 'cover'` 之前，百分之百垫底！
-            // 但此時要注意 clearRect 的位置！
-            
-            startCtx.clearRect(0, 0, startCanvas.width, startCanvas.height); // 在這顆安全墊子上面清空！
+            // 🛠️ 【c0000 最終Compliance】：將全域黑底渲染移出 gameState 分支。
+            // 只要 gameState 變更，不論發生什麼事，黑底與粒子特效絕對不能消失，100% 免疫黑屏卡死！
+            startCtx.fillStyle = '#000000';
+            startCtx.fillRect(0, 0, W, H);
 
+            // 火球向四周飛散粒子系統動態更新
             if (gameState === 'cover' || gameState === 'drawing' || gameState === 'success_anim') {
                 if (coronaParticles.length < 75) {
                     let angle = Math.random() * Math.PI * 2;
@@ -395,19 +392,15 @@
             startCtx.save();
             startCtx.globalAlpha = ritualOpacity;
 
-            // 🛠️ 【零公差防禦重構三】：將全域黑底與底圖渲染移入 `gameState === 'cover'` 內！
-            // 移除任何會導致封面黑屏的 unsafe context 呼叫。
+            // 封面底圖渲染
             if (gameState === 'cover') {
-                startCtx.fillStyle = '#000000';
-                startCtx.fillRect(0, 0, W, H);
-
                 if (magicCircleImg.complete && magicCircleImg.width > 0) {
                     startCtx.save(); startCtx.translate(centerX, circleCenterY);
                     circleRotation += 0.004; startCtx.rotate(circleRotation);
                     startCtx.drawImage(magicCircleImg, -fixedSize / 2, -fixedSize / 2, fixedSize, fixedSize);
                     startCtx.restore();
                 } else {
-                    //Fallback: 如果底圖沒加載好，畫一個金色光圈墊底
+                    // 如果底圖載入失敗，畫一個金色光圈替代
                     startCtx.save();
                     startCtx.strokeStyle = '#ffd700'; startCtx.lineWidth = 3; startCtx.shadowBlur = 15; startCtx.shadowColor = '#ff4500';
                     startCtx.beginPath(); startCtx.arc(centerX, circleCenterY, fixedSize / 2, 0, Math.PI * 2); startCtx.stroke();
@@ -415,8 +408,8 @@
                 }
             } 
             else if (gameState === 'drawing') {
-                // 🛠️ 【零公差防禦重構四】：彻底移除致命的 return!
-                // 只要 gameState 變更，不論點陣列初始化完了沒，程式碼絕對不能「return」，否則畫面就會空轉漆黑！
+                // 🛠️ 【c0000 最終Compliance】：徹底移除這裡致命的 return!
+                // 只要 gameState 變更，不論隨機點陣列初始化完了沒，程式碼絕對不能「return」，否則畫面就會空轉漆黑！
                 if (bg1Img.complete && bg1Img.width > 0) {
                     startCtx.save(); startCtx.translate(centerX, circleCenterY);
                     bg1Rotation -= 0.002; startCtx.rotate(bg1Rotation);
@@ -734,7 +727,7 @@
             window.location.reload(true);
         }
 
-        // 初始化時序：百分之百咬合
+        // 初始化時序咬合
         resizeCanvases();
         updateStartScreen();
         gameLoop();
