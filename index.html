@@ -45,7 +45,7 @@
 
         @keyframes pulseGlow { 0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(0.97); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.03); } }
 
-        /* 頂部引進與狀態引導提示框 - 🛠️ 微調高度以容納條列文字 */
+        /* 頂部引進與狀態引導提示框 */
         #instruction { 
             position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 15; 
             background: rgba(0,0,0,0.88); color: #fff; padding: 16px 22px; border-radius: 20px; 
@@ -53,15 +53,15 @@
             display: none; width: 90%; max-width: 380px; box-sizing: border-box;
         }
         
-        /* 規則條列樣式美化 */
+        /* 規則條列樣式 */
         #instruction ul { margin: 8px 0; padding-left: 20px; font-size: 13px; line-height: 1.6; color: #e0e0e0; }
         #instruction li { margin-bottom: 6px; }
         #instruction li strong { color: #ffd700; }
         .prompt-click-text { font-size: 12px; color: #00d2ff; text-align: center; margin-top: 10px; font-weight: bold; text-shadow: 0 0 4px rgba(0,210,255,0.5); }
         
-        /* 遊戲開始魔法陣鍵 - 🛠️ 配合上方提示框高度下移至 top: 300px */
+        /* 遊戲開始魔法陣鍵 - 因移除難度加成後提示框縮短，故將按鈕上移至 top: 245px 以保持視覺緊湊 */
         #start-ritual-btn {
-            display: none; position: absolute; top: 300px; left: 50%; transform: translateX(-50%); z-index: 16;
+            display: none; position: absolute; top: 245px; left: 50%; transform: translateX(-50%); z-index: 16;
             width: 76px; height: 76px; border-radius: 50%; border: 2px solid #00d2ff;
             background: radial-gradient(circle, rgba(0,210,255,0.6) 0%, rgba(0,70,120,0.9) 70%, rgba(0,0,0,0.4) 100%);
             box-shadow: 0 0 20px rgba(0, 210, 255, 0.6), inset 0 0 15px rgba(0, 210, 255, 0.8);
@@ -85,9 +85,9 @@
         .success { color: #00d2ff; }
         .failed { color: #ff4500; }
 
-        /* 左下角五頂魔法帽生命值區 - 🛠️ 下移至 top: 400px 防止重疊 */
+        /* 左下角五頂魔法帽生命值區 - 同步移至新按鈕下方 top: 345px */
         #hat-hp-bar {
-            display: none; position: absolute; top: 400px; left: 50%; transform: translateX(-50%); z-index: 15;
+            display: none; position: absolute; top: 345px; left: 50%; transform: translateX(-50%); z-index: 15;
             gap: 8px; justify-content: center; align-items: center; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 20px; border: 1px solid #ff4500;
         }
         .hp-hat-icon { width: 32px; height: 32px; object-fit: contain; transition: all 0.3s ease; filter: drop-shadow(0 0 5px #ffd700); }
@@ -153,14 +153,13 @@
     <!-- 羅馬數字巨大倒數計時層 -->
     <div id="countdown-overlay">III</div>
 
-    <!-- 🛠️ 修正點：將提示框結構改為條列說明完整遊戲規則，並附註點擊鍵提示 -->
+    <!-- 🛠️ 修正點：根據指示，精簡火球攔截與帽體閃避描述，並移除原有的第4條難度加成說明 -->
     <div id="instruction">
         <strong id="ritual-title" style="color: #ff4500; display: block; text-align: center; font-size: 15px;">巫師火原素特訓：巨龍逆襲戰</strong>
         <ul id="ritual-rules">
-            <li><strong>火球攔截：</strong>手持紅色魔杖（色塊追蹤）瞄準並擊落巨龍噴出的滾落火球。</li>
-            <li><strong>帽體閃避：</strong>當火球逼近或巨龍停下釋放火焰射線時，請擺動身體控制 AR 巫師帽進行閃避。</li>
+            <li><strong>火球攔截：</strong>手持紅色魔杖擊落火球。</li>
+            <li><strong>帽體閃避：</strong>擺動身體控制巫師帽進行閃避。</li>
             <li><strong>生命界限：</strong>火球落地、觸碰帽體或被射線擊中均會損失 1 頂巫師帽，滿 5 次則特訓結束。</li>
-            <li><strong>難度加乘：</strong>巨龍每完成一次火焰射線掃射，後續吐出的火球飛行速度將大幅加快。</li>
         </ul>
         <div class="prompt-click-text">─ 使用魔法棒點擊下方 START 鍵即開始遊戲 ─</div>
     </div>
@@ -287,7 +286,6 @@
                 gameState = 'drawing'; 
                 document.getElementById('start-prompt').style.display = 'none'; 
                 instructionBox.style.display = 'block';
-                // 畫符文時的初始導引（覆蓋 HTML 原生預設內容，畫完才展現頭目戰規則）
                 document.getElementById('ritual-title').innerText = "結界啟動中...";
                 document.getElementById('ritual-title').style.color = "#ffd700";
                 document.getElementById('instruction').querySelector('ul').style.display = 'none';
@@ -422,7 +420,6 @@
         function triggerReadyState() {
             gameState = 'ready';
             
-            // 復原完整的 HTML 條列規則結構與指引
             document.getElementById('ritual-title').innerText = "巫師火原素特訓：巨龍逆襲戰";
             document.getElementById('ritual-title').style.color = "#ff4500";
             document.getElementById('instruction').querySelector('ul').style.display = 'block';
