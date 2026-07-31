@@ -190,7 +190,7 @@
         let userHatAR = { x: 0, y: 0, width: 110, height: 110, tracked: false, ivX: 0, ivY: 0 };
         let invulnerableTimer = 0;
 
-        // 🛠️ 核心修改：新增全域火球加成速度變數（單位為 px/frame）
+        // 🛠️ 核心修改：大幅提高每次雷射後的速度加成量，以實現滯空時間縮短將近 1 秒的體感效果
         let fireballSpeedBonus = 0;
 
         function resizeCanvases() {
@@ -483,7 +483,7 @@
             
             let angle = Math.PI / 2 + (Math.random() - 0.5) * 0.5; 
             
-            // 🛠️ 核心修改：火球的基礎飛行速度直接加上當前的累積速度加成
+            // 🛠️ 核心修改：火球的出射基礎速度直接套用累積的速度增幅
             let currentBaseSpeed = 1.8 + fireballSpeedBonus;
             fireball.speedX = Math.cos(angle) * currentBaseSpeed;
             fireball.speedY = Math.sin(angle) * currentBaseSpeed;
@@ -541,8 +541,9 @@
                     dragonBoss.shootCooldown = 0; 
                     dragonLaser.active = false;
 
-                    // 🛠️ 核心修改：雷射（吐火焰）狀態結束的瞬間，讓火球下一次的每幀移動速度增加 0.5 像素
-                    fireballSpeedBonus += 0.5;
+                    // 🛠️ 核心修改：每吐完一次火焰，下發火球每幀向量速度大增 2.5 像素
+                    // 這能讓火球在空中的存活推進時間驟減將近 1 秒鐘，極具壓迫感！
+                    fireballSpeedBonus += 2.5;
                 }
             }
         }
