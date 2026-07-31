@@ -190,6 +190,9 @@
         let userHatAR = { x: 0, y: 0, width: 110, height: 110, tracked: false, ivX: 0, ivY: 0 };
         let invulnerableTimer = 0;
 
+        // 🛠️ 核心修改：新增全域火球加成速度變數（單位為 px/frame）
+        let fireballSpeedBonus = 0;
+
         function resizeCanvases() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -479,8 +482,11 @@
             fireball.size = 2;
             
             let angle = Math.PI / 2 + (Math.random() - 0.5) * 0.5; 
-            fireball.speedX = Math.cos(angle) * 1.8;
-            fireball.speedY = Math.sin(angle) * 1.8;
+            
+            // 🛠️ 核心修改：火球的基礎飛行速度直接加上當前的累積速度加成
+            let currentBaseSpeed = 1.8 + fireballSpeedBonus;
+            fireball.speedX = Math.cos(angle) * currentBaseSpeed;
+            fireball.speedY = Math.sin(angle) * currentBaseSpeed;
             fireball.active = true;
         }
 
@@ -534,6 +540,9 @@
                     dragonBoss.stateTimer = Math.random() * 100 + 100;
                     dragonBoss.shootCooldown = 0; 
                     dragonLaser.active = false;
+
+                    // 🛠️ 核心修改：雷射（吐火焰）狀態結束的瞬間，讓火球下一次的每幀移動速度增加 0.5 像素
+                    fireballSpeedBonus += 0.5;
                 }
             }
         }
@@ -649,14 +658,13 @@
                             }
                         }
 
-                        // 💥 2. 新增：火球飛動期間與玩家 AR 巫師帽的碰撞判定（未被無敵時間保護時）
+                        // 💥 2. 火球飛動期間與玩家 AR 巫師帽的碰撞判定
                         if (fireball.active && userHatAR.tracked && invulnerableTimer === 0) {
                             let distToHat = Math.hypot(fireball.x - userHatAR.x, fireball.y - userHatAR.y);
-                            // 火球有效碰撞半徑大約為 size * 0.75，帽子有效半徑以寬度的 40% 計算
                             if (distToHat < (fireball.size * 0.75 + userHatAR.width * 0.4)) {
-                                createExplosion(fireball.x, fireball.y); // 在碰撞點產生爆炸特效
+                                createExplosion(fireball.x, fireball.y);
                                 fireball.active = false;
-                                triggerPlayerDamage(); // 扣一頂帽子並觸發受傷震動
+                                triggerPlayerDamage();
                             }
                         }
 
