@@ -8,7 +8,7 @@
     <!-- Google Fonts 史詩級魔法書寫風格字型 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght=700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
     
     <!-- 引入核心的顏色追蹤庫 與 官方 MediaPipe 臉部網格庫 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tracking.js/1.1.3/tracking-min.js"></script>
@@ -173,7 +173,7 @@
         let gameState = 'cover'; 
         let countdownNumber = 3;
 
-        // 幾何核心物件定義
+        // 核心幾何物件定義
         let fireball = { x: 0, y: 0, size: 5, speedX: 0, speedY: 0, active: false };
         let crosshair = { x: 0, y: 0, targetX: 0, targetY: 0, rotation: 0, targetSize: 35, currentSize: 35, hasTracking: false };
         let explosions = []; 
@@ -339,8 +339,7 @@
             crosshair.x += (crosshair.targetX - crosshair.x) * 0.45;
             crosshair.y += (crosshair.targetY - crosshair.y) * 0.45;
 
-            // 🛠️ 【c0000 最終Compliance】：將全域黑底渲染移出 gameState 分支。
-            // 只要 gameState 變更，不論發生什麼事，黑底與粒子特效絕對不能消失，100% 免疫黑屏卡死！
+            // 黑背景渲染
             startCtx.fillStyle = '#000000';
             startCtx.fillRect(0, 0, W, H);
 
@@ -376,7 +375,7 @@
                     let ratio = p.life / p.maxLife;
                     let grad = startCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
                     grad.addColorStop(0, 'rgba(255, 235, 170, ' + ratio + ')');
-                    grad.addColorStop(0.3, 'rgba(255, 80, 0, ' + ratio * 0.8 + ')');
+                    grad.addColorStop(0.3, 'rgba(255, 90, 0, ' + ratio * 0.8 + ')');
                     grad.addColorStop(1, 'rgba(255, 0, 0, 0)');
                     
                     startCtx.beginPath(); 
@@ -392,7 +391,7 @@
             startCtx.save();
             startCtx.globalAlpha = ritualOpacity;
 
-            // 封面底圖渲染
+            // 封面階段
             if (gameState === 'cover') {
                 if (magicCircleImg.complete && magicCircleImg.width > 0) {
                     startCtx.save(); startCtx.translate(centerX, circleCenterY);
@@ -408,16 +407,15 @@
                 }
             } 
             else if (gameState === 'drawing') {
-                // 🛠️ 【c0000 最終Compliance】：徹底移除這裡致命的 return!
-                // 只要 gameState 變更，不論點陣列初始化完了沒，程式碼絕對不能「return」，否則畫面就會空轉漆黑！
-                if (bg1Img.complete && bg1Img.width > 0) {
-                    startCtx.save(); startCtx.translate(centerX, circleCenterY);
-                    bg1Rotation -= 0.002; startCtx.rotate(bg1Rotation);
-                    startCtx.drawImage(bg1Img, -fixedSize / 2, -fixedSize / 2, fixedSize, fixedSize);
-                    startCtx.restore();
-                }
-
+                // 如果陣列為空，不執行 undefined
                 if (pentagramPoints.length > 0) {
+                    if (bg1Img.complete && bg1Img.width > 0) {
+                        startCtx.save(); startCtx.translate(centerX, circleCenterY);
+                        bg1Rotation -= 0.002; startCtx.rotate(bg1Rotation);
+                        startCtx.drawImage(bg1Img, -fixedSize / 2, -fixedSize / 2, fixedSize, fixedSize);
+                        startCtx.restore();
+                    }
+
                     if (crosshair.hasTracking) {
                         let targetPt = pentagramPoints[nextRequiredPoint];
                         if (targetPt) {
@@ -514,7 +512,7 @@
         function spawnFireball() {
             if (isGameOver || gameState !== 'playing') return; 
             fireball.x = dragonBoss.x + dragonBoss.width / 2;
-            // 🛠️ 【幾何校正歸位】：噴火點嚴格咬合嘴部火焰造型核心。彻底排除「下巴吐火」的公差回饋。
+            // 幾何校正歸位：噴火點嚴格咬合嘴部火焰造型核心。
             fireball.y = dragonBoss.y + dragonBoss.height * 0.55; 
             fireball.size = 2;
             
@@ -563,7 +561,7 @@
                     dragonBoss.stateTimer = 100; 
                     dragonLaser.active = true;
                     dragonLaser.x = dragonBoss.x + dragonBoss.width / 2;
-                    // 🛠️ 【幾何校正歸位】：雷射發射點徹底與龍嘴火焰造型中心咬合。
+                    // 雷射發射點徹底與龍嘴火焰造型中心咬合。
                     dragonLaser.topY = dragonBoss.y + dragonBoss.height * 0.55; 
                 }
             } 
@@ -727,7 +725,7 @@
             window.location.reload(true);
         }
 
-        // KINETIC SORCERY Compliance 初始化時序
+        // 初始化時序
         resizeCanvases();
         updateStartScreen();
         gameLoop();
