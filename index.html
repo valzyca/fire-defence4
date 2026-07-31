@@ -46,17 +46,17 @@
         @keyframes pulseGlow { 0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(0.97); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.03); } }
 
         /* 頂部引進與狀態引導 */
-        #instruction { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 15; background: rgba(0,0,0,0.75); color: #fff; padding: 12px 24px; border-radius: 30px; border: 1px solid #ff4500; text-align: center; box-shadow: 0 0 15px rgba(255, 69, 0, 0.4); display: none; }
+        #instruction { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 15; background: rgba(0,0,0,0.75); color: #fff; padding: 12px 24px; border-radius: 30px; border: 1px solid #ff4500; text-align: center; box-shadow: 0 0 15px rgba(255, 69, 0, 0.4); display: none; width: 80%; max-width: 400px; box-sizing: border-box; }
         
         /* 右下角魔法計數器 */
         #scoreboard { position: absolute; bottom: 35px; right: 35px; z-index: 15; background: rgba(0,0,0,0.8); color: #fff; padding: 15px; border-radius: 12px; border: 2px solid #00d2ff; font-weight: bold; font-size: 16px; line-height: 1.6; box-shadow: 0 0 10px rgba(0, 210, 255, 0.3); display: none; }
         .success { color: #00d2ff; }
         .failed { color: #ff4500; }
 
-        /* 左下角五頂魔法帽生命值區 */
+        /* 🛠️ 修正點：將五頂魔法帽生命值區移到「頂部中央」，在提示 UI 的下方，徹底杜絕與計數器重疊 */
         #hat-hp-bar {
-            display: none; position: absolute; bottom: 35px; left: 35px; z-index: 15;
-            gap: 8px; justify-content: center; align-items: center; background: rgba(0,0,0,0.6); padding: 10px 15px; border-radius: 20px; border: 1px solid #ff4500;
+            display: none; position: absolute; top: 155px; left: 50%; transform: translateX(-50%); z-index: 15;
+            gap: 8px; justify-content: center; align-items: center; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 20px; border: 1px solid #ff4500;
         }
         .hp-hat-icon { width: 32px; height: 32px; object-fit: contain; transition: all 0.3s ease; filter: drop-shadow(0 0 5px #ffd700); }
         .hp-hat-lost { opacity: 0.2; filter: grayscale(1) drop-shadow(0 0 0px transparent); transform: scale(0.8); }
@@ -190,7 +190,7 @@
         let userHatAR = { x: 0, y: 0, width: 110, height: 110, tracked: false, ivX: 0, ivY: 0 };
         let invulnerableTimer = 0;
 
-        // 🛠️ 核心修改：新增全域火球加成速度變數（單位為 px/frame）
+        // 火球加成速度變數
         let fireballSpeedBonus = 0;
 
         function resizeCanvases() {
@@ -483,7 +483,6 @@
             
             let angle = Math.PI / 2 + (Math.random() - 0.5) * 0.5; 
             
-            // 🛠️ 核心修改：火球的基礎飛行速度直接加上當前的累積速度加成
             let currentBaseSpeed = 1.8 + fireballSpeedBonus;
             fireball.speedX = Math.cos(angle) * currentBaseSpeed;
             fireball.speedY = Math.sin(angle) * currentBaseSpeed;
@@ -540,9 +539,7 @@
                     dragonBoss.stateTimer = Math.random() * 100 + 100;
                     dragonBoss.shootCooldown = 0; 
                     dragonLaser.active = false;
-
-                    // 🛠️ 核心修改：雷射（吐火焰）狀態結束的瞬間，讓火球下一次的每幀移動速度增加 0.5 像素
-                    fireballSpeedBonus += 0.5;
+                    fireballSpeedBonus += 2.5;
                 }
             }
         }
@@ -647,7 +644,6 @@
                         gradient.addColorStop(0, '#fff'); gradient.addColorStop(0.2, '#ffdd00'); gradient.addColorStop(0.5, '#ff4500'); gradient.addColorStop(1, 'rgba(255,69,0,0)');
                         ctx.fillStyle = gradient; ctx.arc(fireball.x, fireball.y, fireball.size, 0, Math.PI * 2); ctx.fill();
 
-                        // 💥 1. 魔杖魔棒（色塊追蹤準星）攔截判定
                         if (crosshair.hasTracking && fireball.size > 15) {
                             let distance = Math.sqrt((crosshair.x - fireball.x)**2 + (crosshair.y - fireball.y)**2);
                             if (distance < (fireball.size * 0.7 + crosshair.currentSize)) {
@@ -658,7 +654,6 @@
                             }
                         }
 
-                        // 💥 2. 火球飛動期間與玩家 AR 巫師帽的碰撞判定
                         if (fireball.active && userHatAR.tracked && invulnerableTimer === 0) {
                             let distToHat = Math.hypot(fireball.x - userHatAR.x, fireball.y - userHatAR.y);
                             if (distToHat < (fireball.size * 0.75 + userHatAR.width * 0.4)) {
@@ -668,7 +663,6 @@
                             }
                         }
 
-                        // 💥 3. 火球過大或完全掉出螢幕的防線扣血判定
                         if (fireball.active && (fireball.size > 105 || fireball.y > canvas.height + 50)) {
                             fireball.active = false;
                             triggerPlayerDamage();
