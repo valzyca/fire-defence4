@@ -53,7 +53,7 @@
         .success { color: #00d2ff; }
         .failed { color: #ff4500; }
 
-        /* 左下角五頂魔法帽生命值區 - 修正原本被 !important 鎖死無法顯示的問題 */
+        /* 左下角五頂魔法帽生命值區 */
         #hat-hp-bar {
             display: none; position: absolute; bottom: 35px; left: 35px; z-index: 15;
             gap: 8px; justify-content: center; align-items: center; background: rgba(0,0,0,0.6); padding: 10px 15px; border-radius: 20px; border: 1px solid #ff4500;
@@ -378,7 +378,6 @@
                     countdownOverlay.style.display = 'none';
                     document.getElementById('scoreboard').style.display = 'block';
                     
-                    // 修正：直接更改為 flex，避開先前排斥的 CSS 衝突
                     hpBar.style.display = 'flex';
                     stoneFrame.style.display = 'block';
 
@@ -639,6 +638,7 @@
                         gradient.addColorStop(0, '#fff'); gradient.addColorStop(0.2, '#ffdd00'); gradient.addColorStop(0.5, '#ff4500'); gradient.addColorStop(1, 'rgba(255,69,0,0)');
                         ctx.fillStyle = gradient; ctx.arc(fireball.x, fireball.y, fireball.size, 0, Math.PI * 2); ctx.fill();
 
+                        // 💥 1. 魔杖魔棒（色塊追蹤準星）攔截判定
                         if (crosshair.hasTracking && fireball.size > 15) {
                             let distance = Math.sqrt((crosshair.x - fireball.x)**2 + (crosshair.y - fireball.y)**2);
                             if (distance < (fireball.size * 0.7 + crosshair.currentSize)) {
@@ -649,7 +649,18 @@
                             }
                         }
 
-                        // 🛠️ 修正點：當火球過大或掉出螢幕時，判定為防禦失敗，扣除生命值
+                        // 💥 2. 新增：火球飛動期間與玩家 AR 巫師帽的碰撞判定（未被無敵時間保護時）
+                        if (fireball.active && userHatAR.tracked && invulnerableTimer === 0) {
+                            let distToHat = Math.hypot(fireball.x - userHatAR.x, fireball.y - userHatAR.y);
+                            // 火球有效碰撞半徑大約為 size * 0.75，帽子有效半徑以寬度的 40% 計算
+                            if (distToHat < (fireball.size * 0.75 + userHatAR.width * 0.4)) {
+                                createExplosion(fireball.x, fireball.y); // 在碰撞點產生爆炸特效
+                                fireball.active = false;
+                                triggerPlayerDamage(); // 扣一頂帽子並觸發受傷震動
+                            }
+                        }
+
+                        // 💥 3. 火球過大或完全掉出螢幕的防線扣血判定
                         if (fireball.active && (fireball.size > 105 || fireball.y > canvas.height + 50)) {
                             fireball.active = false;
                             triggerPlayerDamage();
@@ -704,7 +715,6 @@
         }
 
         function resetGame() {
-            // 使用標準方法重新載入，確保相機與狀態完全洗牌乾淨
             window.location.reload();
         }
 
