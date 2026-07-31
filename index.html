@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Kinetic Sorcery - 巫師火原素特訓</title>
     
-    <!-- Google Fonts 史詩級魔法書寫風格字型 -->
+    <!-- Google Fonts 史詩級魔法書寫與哥德風格字型 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=UnfrakturMaguntia&display=swap" rel="stylesheet">
     
     <!-- 引入核心的顏色追蹤庫 與 官方 MediaPipe 臉部網格庫 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tracking.js/1.1.3/tracking-min.js"></script>
@@ -53,7 +53,7 @@
             display: none; width: 85%; max-width: 380px; box-sizing: border-box;
         }
         
-        /* 🛠️ 新增：畫面上方提示框下方的「遊戲開始魔法陣鍵」 */
+        /* 遊戲開始魔法陣鍵 - 🛠️ 修正點：font-family 改為哥德體 'UnfrakturMaguntia' 並微調字級大小 */
         #start-ritual-btn {
             display: none; position: absolute; top: 185px; left: 50%; transform: translateX(-50%); z-index: 16;
             width: 76px; height: 76px; border-radius: 50%; border: 2px solid #00d2ff;
@@ -61,8 +61,10 @@
             box-shadow: 0 0 20px rgba(0, 210, 255, 0.6), inset 0 0 15px rgba(0, 210, 255, 0.8);
             cursor: pointer; pointer-events: auto;
             animation: circlePulse 2s infinite ease-in-out;
-            justify-content: center; align-items: center; color: #fff; font-size: 11px; font-weight: bold; letter-spacing: 1px;
+            justify-content: center; align-items: center; color: #fff; 
+            font-family: 'UnfrakturMaguntia', 'Cinzel Decorative', Georgia, serif; font-size: 15px; font-weight: bold; letter-spacing: 2px;
             text-shadow: 0 0 5px #00d2ff; text-align: center; box-sizing: border-box;
+            padding-top: 2px; /* 針對哥德字型結構的視覺微調，使其垂直完美居中 */
         }
 
         /* 魔法陣按鈕向外藍色光芒呼吸動畫 */
@@ -77,7 +79,7 @@
         .success { color: #00d2ff; }
         .failed { color: #ff4500; }
 
-        /* 左下角五頂魔法帽生命值區 - 移至提示框下方（原 top: 155px 配合新按鈕下移至 top: 285px） */
+        /* 左下角五頂魔法帽生命值區 */
         #hat-hp-bar {
             display: none; position: absolute; top: 285px; left: 50%; transform: translateX(-50%); z-index: 15;
             gap: 8px; justify-content: center; align-items: center; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 20px; border: 1px solid #ff4500;
@@ -151,7 +153,7 @@
         <span id="ritual-desc" style="font-size: 13px; line-height: 1.5; display: inline-block; margin-top: 5px;">擊落滾落火球！當巨龍停下時，請<span style="color:#ffd700;font-weight:bold;">擺動身體閃避</span>火焰射線！</span>
     </div>
 
-    <!-- 🛠️ 新增：開始遊戲觸發魔法陣按鈕 -->
+    <!-- 開始遊戲觸發魔法陣按鈕 -->
     <div id="start-ritual-btn" onclick="startCountdownFlow()">START</div>
 
     <!-- 右下角計數器 -->
@@ -270,7 +272,6 @@
 
         startScreen.addEventListener('mousedown', (e) => {
             if(gameState === 'cover') { gameState = 'drawing'; document.getElementById('start-prompt').style.display = 'none'; 
-                // 初始繪圖引導提示
                 instructionBox.style.display = 'block';
                 document.getElementById('ritual-title').innerText = "結界啟動中...";
                 document.getElementById('ritual-title').style.color = "#ffd700";
@@ -379,7 +380,7 @@
                 ritualOpacity -= 0.02;
                 if (ritualOpacity <= 0) {
                     ritualOpacity = 0; startScreen.style.display = 'none';
-                    triggerReadyState(); // 🛠️ 修正點：畫完符文後進入準備閱讀狀態，而非立刻倒數
+                    triggerReadyState(); 
                 }
             }
 
@@ -399,26 +400,20 @@
             requestAnimationFrame(updateStartScreen);
         }
 
-        // 🛠️ 新增：準備啟動遊戲階段（展示提示框、生成魔法陣鍵、相機就緒，但不做倒數）
         function triggerReadyState() {
             gameState = 'ready';
             
-            // 1. 排版移至最前：顯示特訓頭目戰提示框
             instructionBox.style.display = 'block';
             document.getElementById('ritual-title').innerText = "巫師火原素特訓：巨龍逆襲頭目戰";
             document.getElementById('ritual-title').style.color = "#ff4500";
             document.getElementById('ritual-desc').innerHTML = '擊落滾落火球！當巨龍停下時，請<span style="color:#ffd700;font-weight:bold;">擺動身體閃避</span>火焰射線！';
 
-            // 2. 在提示框正下方顯現帶有藍色漸層光的 START 魔法陣按鈕
             startBtn.style.display = 'flex';
 
-            // 3. 背景悄悄初始化追蹤與相機，不打斷玩家閱讀
             initTrackerAndAR();
         }
 
-        // 🛠️ 新增：當點擊魔法陣啟動鍵後，收起 UI 並執行巨大的 3、2、1 倒數
         function startCountdownFlow() {
-            // 隱藏按鈕與提示框，釋放視覺空間給倒數計時
             startBtn.style.display = 'none';
             instructionBox.style.display = 'none';
 
@@ -434,7 +429,6 @@
                     clearInterval(timer);
                     countdownOverlay.style.display = 'none';
                     
-                    // 倒數結束，遊戲核心介面浮現，全面開戰
                     document.getElementById('scoreboard').style.display = 'block';
                     hpBar.style.display = 'flex';
                     stoneFrame.style.display = 'block';
@@ -474,7 +468,6 @@
 
             tracking.track('#webcam', wandTracker);
 
-            // 修正：在 ready 狀態也允許魔杖懸停點擊魔法陣
             wandTracker.on('track', function(event) {
                 if (isGameOver || event.data.length === 0) {
                     crosshair.hasTracking = false;
@@ -497,7 +490,6 @@
                     crosshair.targetX = canvas.width - (validTarget.x + validTarget.width / 2);
                     crosshair.targetY = validTarget.y + validTarget.height / 2;
 
-                    // 🛠️ 額外優化：如果玩家手持魔杖懸停在 START 魔法陣上，自動觸發進入倒數
                     if (gameState === 'ready') {
                         let btnRect = startBtn.getBoundingClientRect();
                         if (crosshair.targetX > btnRect.left && crosshair.targetX < btnRect.right &&
@@ -656,7 +648,6 @@
             }
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // 修正：在 ready 狀態也允許繪製十字準星與粒子，提升互動體感
             if (gameStarted || isGameOver || gameState === 'ready') {
                 if (invulnerableTimer > 0) invulnerableTimer--;
 
@@ -732,7 +723,6 @@
                     }
                 }
 
-                // 準備與遊玩期間都渲染頭目頭像與 AR 帽子
                 if (dragonImg.complete && (gameState === 'playing' || gameState === 'ready')) {
                     ctx.save();
                     let offsetX = (dragonBoss.state === 'pre_laser') ? (Math.random() - 0.5) * 5 : 0;
