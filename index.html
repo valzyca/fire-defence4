@@ -305,7 +305,7 @@
                 faceMesh.onResults(onARFaceMeshResults);
 
                 async function sendVideoFrame() {
-                    if (!isGameOver && video.readyState === video.HAVE_ENOUGH_DATA) {
+                    if (!isGameOver && video.videoWidth > 0 && video.readyState === video.HAVE_ENOUGH_DATA) {
                         await faceMesh.send({ image: video });
                     }
                     requestAnimationFrame(sendVideoFrame);
@@ -325,7 +325,7 @@
             userHatAR.ivY = landmarks[10].y * canvas.height - (canvas.height * 0.12);
         }
 
-        // 初始主畫面渲染循環：百分之百免疫卡死與漏光
+        // 初始主畫面渲染循環：百分之百免疫卡死
         function updateStartScreen() {
             if (gameStarted && gameState === 'playing') return;
             if (startCanvas.width !== window.innerWidth || startCanvas.height !== window.innerHeight) resizeCanvases();
@@ -399,7 +399,7 @@
                     startCtx.drawImage(magicCircleImg, -fixedSize / 2, -fixedSize / 2, fixedSize, fixedSize);
                     startCtx.restore();
                 } else {
-                    // 如果圖片未載入，至少要有幾何定位的金色光圈墊底
+                    //Fallback 金色光圈
                     startCtx.save();
                     startCtx.strokeStyle = '#ffd700'; startCtx.lineWidth = 3; startCtx.shadowBlur = 15; startCtx.shadowColor = '#ff4500';
                     startCtx.beginPath(); startCtx.arc(centerX, circleCenterY, fixedSize / 2, 0, Math.PI * 2); startCtx.stroke();
@@ -407,7 +407,7 @@
                 }
             } 
             else if (gameState === 'drawing') {
-                // 如果陣列為空，不執行 undefined
+                // 如果陣列未滿，不執行 undefined
                 if (pentagramPoints.length > 0) {
                     if (bg1Img.complete && bg1Img.width > 0) {
                         startCtx.save(); startCtx.translate(centerX, circleCenterY);
@@ -465,7 +465,7 @@
                             startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 16 + breath, 0, Math.PI * 2); startCtx.stroke();
                         } else {
                             startCtx.fillStyle = 'rgba(0, 119, 255, 0.25)';
-                            startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 8, 0, Math.PI * 2); startCtx.fill();
+                            startCtx.beginPath(); startCtx.arc(pt.x, pt.y, 8, 0, Math.PI * 2); startCtx.fill(); // 🛠️修正原生 fill();
                         }
                         startCtx.restore();
                     });
