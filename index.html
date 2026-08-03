@@ -38,7 +38,7 @@
         #start-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 11; }
         #start-ui { position: relative; z-index: 12; text-align: center; pointer-events: auto; width: 100%; height: 100%; }
         
-        /* 🛠️ 修正點 3：將喚醒魔杖提示字從 61% 下移到 75%，拉開與中心大魔法陣的距離 */
+        /* 喚醒魔杖提示字 */
         #start-prompt { 
             position: absolute; left: 50%; top: 75%; transform: translate(-50%, -50%); width: 100%;
             font-size: clamp(13px, 2.2vh, 20px); color: #ffd700; text-shadow: 0 0 8px #ff4500, 0 0 15px #ff0000; animation: pulseGlow 2s infinite ease-in-out; font-weight: bold; letter-spacing: 3px; margin: 0;
@@ -61,7 +61,7 @@
         #instruction li strong { color: #ffd700; }
         .prompt-click-text { font-size: 12px; color: #00d2ff; text-align: center; margin-top: 10px; font-weight: bold; text-shadow: 0 0 4px rgba(0,210,255,0.5); }
         
-        /* 遊戲開始魔法陣鍵 - 配合下方提示框微調位置 */
+        /* 遊戲開始魔法陣鍵 */
         #start-ritual-btn {
             display: none; position: absolute; top: 245px; left: 50%; transform: translateX(-50%); z-index: 16;
             width: 76px; height: 76px; border-radius: 50%; border: 2px solid #00d2ff;
@@ -252,8 +252,6 @@
             let H = startCanvas.height;
             let minDim = Math.min(W, H);
             
-            // 🛠️ 修正點 1：將魔法圓環的中心點從原本的 H * 0.34 下移到 H * 0.45（畫面中央偏上一些）
-            // 這樣在各尺寸螢幕上，魔法環頂端都能與頂部的規則提示框拉開超過 100px 的完美安全距離！
             let circleCenterY = H * 0.45;
             let radius = minDim * 0.26; 
 
@@ -320,13 +318,51 @@
 
             let W = startCanvas.width; let H = startCanvas.height;
             let centerX = W / 2; let minDim = Math.min(W, H);
-            
-            // 🛠️ 修正點 2：同步將渲染邏輯中的繪圖基準 Y 座標移至 H * 0.45
             let circleCenterY = H * 0.45;
+
+            // 🛠️ 核心修正：將粒子更新與生成邏輯徹底拉到最外層，完全不被 magicCircleImg.complete 隔離阻斷
+            if (gameState === 'cover' || gameState === 'success_anim') {
+                if (coronaParticles.length < 130) {
+                    let angle = Math.random() * Math.PI * 2;
+                    let speed = Math.random() * 2 + 1.8; 
+                    coronaParticles.push({
+                        // 同步校準至下移後的圓心中心點 Y 座標
+                        x: centerX + Math.cos(angle) * (minDim * 0.25), 
+                        y: circleCenterY + Math.sin(angle) * (minDim * 0.25),
+                        vx: Math.cos(angle) * speed, 
+                        vy: Math.sin(angle) * speed,
+                        life: Math.random() * 35 + 25, 
+                        maxLife: 60, 
+                        size: Math.random() * 30 + 15
+                    });
+                }
+                
+                startCtx.save();
+                startCtx.globalCompositeOperation = 'screen';
+                for (let i = coronaParticles.length - 1; i >= 0; i--) {
+                    let p = coronaParticles[i]; 
+                    p.x += p.vx; 
+                    p.y += p.vy; 
+                    p.life--;
+                    if (p.life <= 0) { coronaParticles.splice(i, 1); continue; }
+                    
+                    let ratio = p.life / p.maxLife;
+                    let grad = startCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+                    grad.addColorStop(0, 'rgba(255, 235, 160, ' + ratio + ')');
+                    grad.addColorStop(0.2, 'rgba(255, 110, 0, ' + ratio * 0.9 + ')');
+                    grad.addColorStop(0.6, 'rgba(230, 30, 0, ' + ratio * 0.4 + ')');
+                    grad.addColorStop(1, 'rgba(0,0,0,0)');
+                    
+                    startCtx.beginPath(); 
+                    startCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    startCtx.fillStyle = grad; 
+                    startCtx.fill();
+                }
+                startCtx.restore();
+            }
 
             startCtx.save();
             startCtx.globalAlpha = ritualOpacity;
-
             let fixedSize = minDim * 0.58;
 
             if (gameState === 'cover') {
@@ -417,7 +453,6 @@
             }
 
             startCtx.restore();
-            document.getElementById('webcam').readyState === video.HAVE_ENOUGH_DATA;
             requestAnimationFrame(updateStartScreen);
         }
 
