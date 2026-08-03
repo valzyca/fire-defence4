@@ -81,18 +81,25 @@
             100% { transform: translateX(-50%) scale(1); box-shadow: 0 0 15px rgba(0, 210, 255, 0.5), inset 0 0 10px rgba(0, 210, 255, 0.5); }
         }
         
-        /* 右下角魔法計數器 */
-        #scoreboard { position: absolute; bottom: 35px; right: 35px; z-index: 15; background: rgba(0,0,0,0.8); color: #fff; padding: 15px; border-radius: 12px; border: 2px solid #00d2ff; font-weight: bold; font-size: 16px; line-height: 1.6; box-shadow: 0 0 10px rgba(0, 210, 255, 0.3); display: none; }
-        .success { color: #00d2ff; }
-        .failed { color: #ff4500; }
-
-        /* 左下角五頂魔法帽生命值區 */
-        #hat-hp-bar {
-            display: none; position: absolute; top: 345px; left: 50%; transform: translateX(-50%); z-index: 15;
-            gap: 8px; justify-content: center; align-items: center; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 20px; border: 1px solid #ff4500;
+        /* 🛠️ 修正點 2：右下角成功攔截統計面板，尺寸與高度最佳化調整 */
+        #scoreboard { 
+            position: absolute; bottom: 35px; right: 35px; z-index: 15; 
+            background: rgba(0,0,0,0.75); color: #fff; padding: 10px 18px; border-radius: 14px; 
+            border: 2px solid #00d2ff; font-weight: bold; font-size: 15px;
+            box-shadow: 0 0 12px rgba(0, 210, 255, 0.4); display: none; height: 48px; box-sizing: border-box;
+            display: flex; align-items: center; justify-content: center;
         }
-        .hp-hat-icon { width: 32px; height: 32px; object-fit: contain; transition: all 0.3s ease; filter: drop-shadow(0 0 5px #ffd700); }
-        .hp-hat-lost { opacity: 0.2; filter: grayscale(1) drop-shadow(0 0 0px transparent); transform: scale(0.8); }
+        .success { color: #00d2ff; font-size: 18px; margin: 0 3px; }
+
+        /* 🛠️ 修正點 1：將生命血條欄位移至「螢幕最下方靠左」，與計數器平行對齊，徹底杜絕畫面遮擋 */
+        #hat-hp-bar {
+            display: none; position: absolute; bottom: 35px; left: 35px; z-index: 15;
+            gap: 6px; justify-content: center; align-items: center; background: rgba(0,0,0,0.75); 
+            padding: 0 16px; border-radius: 14px; border: 2px solid #ff4500;
+            box-shadow: 0 0 12px rgba(255, 69, 0, 0.4); height: 48px; box-sizing: border-box;
+        }
+        .hp-hat-icon { width: 26px; height: 26px; object-fit: contain; transition: all 0.3s ease; filter: drop-shadow(0 0 4px #ffd700); }
+        .hp-hat-lost { opacity: 0.15; filter: grayscale(1) drop-shadow(0 0 0px transparent); transform: scale(0.75); }
 
         /* 全螢幕巨大倒數計時文字 */
         #countdown-overlay {
@@ -168,10 +175,9 @@
     <!-- 開始遊戲觸發魔法陣按鈕 -->
     <div id="start-ritual-btn" onclick="startCountdownFlow()">START</div>
 
-    <!-- 右下角計數器 -->
+    <!-- 🛠️ 修正點：右下角計數器只保留「成功攔截」次數 -->
     <div id="scoreboard">
         <div>成功攔截：<span id="txt-success" class="success">0</span> 次</div>
-        <div>防禦失敗：<span id="txt-failed" class="failed">0</span> 次</div>
     </div>
 
     <!-- 五頂魔法帽生命值血條 -->
@@ -320,13 +326,11 @@
             let centerX = W / 2; let minDim = Math.min(W, H);
             let circleCenterY = H * 0.45;
 
-            // 🛠️ 核心修正：將粒子更新與生成邏輯徹底拉到最外層，完全不被 magicCircleImg.complete 隔離阻斷
             if (gameState === 'cover' || gameState === 'success_anim') {
-                if (coronaParticles.length < 130) {
+                if (coronaParticles.length < 120) {
                     let angle = Math.random() * Math.PI * 2;
                     let speed = Math.random() * 2 + 1.8; 
                     coronaParticles.push({
-                        // 同步校準至下移後的圓心中心點 Y 座標
                         x: centerX + Math.cos(angle) * (minDim * 0.25), 
                         y: circleCenterY + Math.sin(angle) * (minDim * 0.25),
                         vx: Math.cos(angle) * speed, 
@@ -350,7 +354,6 @@
                     let grad = startCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
                     grad.addColorStop(0, 'rgba(255, 235, 160, ' + ratio + ')');
                     grad.addColorStop(0.2, 'rgba(255, 110, 0, ' + ratio * 0.9 + ')');
-                    grad.addColorStop(0.6, 'rgba(230, 30, 0, ' + ratio * 0.4 + ')');
                     grad.addColorStop(1, 'rgba(0,0,0,0)');
                     
                     startCtx.beginPath(); 
@@ -488,7 +491,8 @@
                     clearInterval(timer);
                     countdownOverlay.style.display = 'none';
                     
-                    document.getElementById('scoreboard').style.display = 'block';
+                    // 倒數結束，顯示排版優化後的底部雙控制面板
+                    document.getElementById('scoreboard').style.display = 'flex';
                     hpBar.style.display = 'flex';
                     stoneFrame.style.display = 'block';
                     
@@ -670,7 +674,7 @@
             if (isGameOver || invulnerableTimer > 0) return; 
 
             scoreFailed++;
-            document.getElementById('txt-failed').innerText = scoreFailed;
+            // 修正點：防禦失敗次數仍在後台增加以維持遊戲血量邏輯，但不再向前端元素 txt-failed 更新文字
 
             invulnerableTimer = 60; 
 
