@@ -281,11 +281,21 @@
             }
         }
 
-        // 🛠️ 修正點：移除原本 mousedown 與 touchstart 裡過時的 instructionBox.style.display = 'block'; 避免繪圖時提早彈出遮擋
+        // 🛠️ 修正點：點擊黑畫面的瞬間，將提示框打開，並塞入正確的「符文描繪導引文」，同時隱藏未來的條列規則清單。
         startScreen.addEventListener('mousedown', (e) => {
             if(gameState === 'cover') { 
                 gameState = 'drawing'; 
                 document.getElementById('start-prompt').style.display = 'none'; 
+                
+                // 啟動提示框容納繪圖導引文
+                instructionBox.style.display = 'block';
+                document.getElementById('ritual-title').innerText = "結界啟動中...";
+                document.getElementById('ritual-title').style.color = "#ffd700";
+                instructionBox.querySelector('ul').style.display = 'none'; // 隱藏遊戲規則清單
+                
+                let clickPrompt = instructionBox.querySelector('.prompt-click-text');
+                clickPrompt.innerText = "請用手指或魔杖在圓圈內依序滑過藍色發光點，一筆畫畫出五芒星！";
+                clickPrompt.style.textAlign = "left";
             }
         });
         startScreen.addEventListener('mousemove', handleTouchMove);
@@ -293,6 +303,16 @@
             if(gameState === 'cover') { 
                 gameState = 'drawing'; 
                 document.getElementById('start-prompt').style.display = 'none'; 
+                
+                // 針對行動裝置觸控同樣開啟提示框
+                instructionBox.style.display = 'block';
+                document.getElementById('ritual-title').innerText = "結界啟動中...";
+                document.getElementById('ritual-title').style.color = "#ffd700";
+                instructionBox.querySelector('ul').style.display = 'none';
+                
+                let clickPrompt = instructionBox.querySelector('.prompt-click-text');
+                clickPrompt.innerText = "請用手指在圓圈內依序滑過藍色發光點，一筆畫畫出五芒星！";
+                clickPrompt.style.textAlign = "left";
             }
         }, { passive: false });
         startScreen.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -411,9 +431,19 @@
             requestAnimationFrame(updateStartScreen);
         }
 
-        // 🛠️ 修正點：一筆畫順利結束、外層蓋板功成身退時，提示框（詳細規則）與 START 按鈕才真正同步顯示
+        // 符文繪製完成後，正式解鎖並切換為「完整條列遊戲規則」與「START 按鈕」
         function triggerReadyState() {
             gameState = 'ready';
+            
+            document.getElementById('ritual-title').innerText = "巫師火原素特訓：巨龍逆襲戰";
+            document.getElementById('ritual-title').style.color = "#ff4500";
+            
+            // 開啟完整的條列規則清單
+            instructionBox.querySelector('ul').style.display = 'block';
+            
+            let clickPrompt = instructionBox.querySelector('.prompt-click-text');
+            clickPrompt.innerText = "─ 使用魔法棒點擊下方 START 鍵即開始遊戲 ─";
+            clickPrompt.style.textAlign = "center";
             
             instructionBox.style.display = 'block';
             startBtn.style.display = 'flex';
