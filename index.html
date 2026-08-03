@@ -33,13 +33,14 @@
         #start-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10;
             background: transparent; display: flex; flex-direction: column; justify-content: center; align-items: center;
-            transition: opacity 0.5s ease; pointer-events: none; /* 讓點擊能穿透或由魔杖全面接管 */
+            transition: opacity 0.5s ease; pointer-events: none;
         }
         #start-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 11; }
         #start-ui { position: relative; z-index: 12; text-align: center; pointer-events: auto; width: 100%; height: 100%; }
         
+        /* 🛠️ 修正點 3：將喚醒魔杖提示字從 61% 下移到 75%，拉開與中心大魔法陣的距離 */
         #start-prompt { 
-            position: absolute; left: 50%; top: 61%; transform: translate(-50%, -50%); width: 100%;
+            position: absolute; left: 50%; top: 75%; transform: translate(-50%, -50%); width: 100%;
             font-size: clamp(13px, 2.2vh, 20px); color: #ffd700; text-shadow: 0 0 8px #ff4500, 0 0 15px #ff0000; animation: pulseGlow 2s infinite ease-in-out; font-weight: bold; letter-spacing: 3px; margin: 0;
             cursor: pointer;
         }
@@ -60,7 +61,7 @@
         #instruction li strong { color: #ffd700; }
         .prompt-click-text { font-size: 12px; color: #00d2ff; text-align: center; margin-top: 10px; font-weight: bold; text-shadow: 0 0 4px rgba(0,210,255,0.5); }
         
-        /* 遊戲開始魔法陣鍵 */
+        /* 遊戲開始魔法陣鍵 - 配合下方提示框微調位置 */
         #start-ritual-btn {
             display: none; position: absolute; top: 245px; left: 50%; transform: translateX(-50%); z-index: 16;
             width: 76px; height: 76px; border-radius: 50%; border: 2px solid #00d2ff;
@@ -245,20 +246,19 @@
         }
         window.addEventListener('resize', resizeCanvases);
 
-        // 🛠️ 核心修改：生成五芒星隨機點（打亂角度順序，達到每次隨機生成的魔法陣連線效果）
         function generatePentagramPoints() {
             let centerX = startCanvas.width / 2;
             let W = startCanvas.width;
             let H = startCanvas.height;
             let minDim = Math.min(W, H);
-            let circleCenterY = H * 0.34;
+            
+            // 🛠️ 修正點 1：將魔法圓環的中心點從原本的 H * 0.34 下移到 H * 0.45（畫面中央偏上一些）
+            // 這樣在各尺寸螢幕上，魔法環頂端都能與頂部的規則提示框拉開超過 100px 的完美安全距離！
+            let circleCenterY = H * 0.45;
             let radius = minDim * 0.26; 
 
             pentagramPoints = [];
-            // 標準五芒星一筆畫交叉順序角度
             let drawOrderAngles = [ -Math.PI/2, Math.PI*0.7, -Math.PI*0.9, Math.PI*0.3, Math.PI*0.1 ];
-            
-            // 隨機偏移初始角度，達到「隨機出現藍色亮點」的體感
             let randomOffset = Math.random() * Math.PI * 2;
 
             for(let i=0; i<5; i++) {
@@ -267,13 +267,11 @@
             }
         }
 
-        // 🛠️ 核心修改：點擊後直接啟動追蹤與鏡頭，並進入魔杖繪圖模式
         function activateWandMode() {
             if (gameState !== 'cover') return;
             gameState = 'drawing'; 
             document.getElementById('start-prompt').style.display = 'none'; 
             
-            // 顯現繪圖引導提示
             instructionBox.style.display = 'block';
             document.getElementById('ritual-title').innerText = "遠古結界共鳴中...";
             document.getElementById('ritual-title').style.color = "#00d2ff";
@@ -283,10 +281,9 @@
             clickPrompt.innerText = "請手持紅色魔法杖，依序滑過圓圈上的藍色魔法亮點來構造連線！";
             clickPrompt.style.textAlign = "center";
 
-            initTrackerAndAR(); // 提前喚醒相機與追蹤
+            initTrackerAndAR();
         }
 
-        // 保留原有的視窗滑動事件，同時兼容觸控與魔杖雙重操作
         function handleTouchMove(e) {
             if (gameState !== 'drawing') return;
             let clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -296,7 +293,6 @@
         window.addEventListener('mousemove', handleTouchMove);
         window.addEventListener('touchmove', handleTouchMove, { passive: false });
 
-        // 🛠️ 核心修改：魔杖核心碰撞與自動繪製藍色發光線條演算法
         function checkWandPointCollision(targetX, targetY) {
             if (gameState !== 'drawing') return;
 
@@ -306,11 +302,9 @@
             let targetPt = pentagramPoints[nextRequiredPoint];
             if (targetPt) {
                 let dist = Math.hypot(targetX - targetPt.x, targetY - targetPt.y);
-                // 當魔杖紅色區塊進入亮點 45px 範圍內
                 if (dist < 45) { 
                     targetPt.activated = true;
                     nextRequiredPoint++;
-                    // 五點依序全部連結完成
                     if (nextRequiredPoint >= 5) {
                         gameState = 'success_anim';
                     }
@@ -326,7 +320,9 @@
 
             let W = startCanvas.width; let H = startCanvas.height;
             let centerX = W / 2; let minDim = Math.min(W, H);
-            let circleCenterY = H * 0.34;
+            
+            // 🛠️ 修正點 2：同步將渲染邏輯中的繪圖基準 Y 座標移至 H * 0.45
+            let circleCenterY = H * 0.45;
 
             startCtx.save();
             startCtx.globalAlpha = ritualOpacity;
@@ -345,7 +341,6 @@
                 if (bg1Img.complete) startCtx.drawImage(bg1Img, -fixedSize / 2, -fixedSize / 2, fixedSize, fixedSize);
                 startCtx.restore();
 
-                // 🛠️ 核心修改：實時繪製由魔杖軌跡產生的藍色發光魔法連線
                 if (nextRequiredPoint > 0) {
                     startCtx.save();
                     startCtx.strokeStyle = 'rgba(0, 210, 255, 0.8)'; 
@@ -360,7 +355,6 @@
                     for (let k = 1; k < nextRequiredPoint; k++) {
                         startCtx.lineTo(pentagramPoints[k].x, pentagramPoints[k].y);
                     }
-                    // 連線到目前魔杖實時位置
                     if (crosshair.hasTracking) {
                         startCtx.lineTo(crosshair.x, crosshair.y);
                     }
@@ -368,7 +362,6 @@
                     startCtx.restore();
                 }
 
-                // 渲染亮點樣式
                 pentagramPoints.forEach((pt, index) => {
                     startCtx.save();
                     let isCurrent = (index === nextRequiredPoint);
@@ -387,7 +380,6 @@
                 });
             } 
             else if (gameState === 'success_anim') {
-                // 成功一筆畫完整藍色線條閉合渲染
                 startCtx.save();
                 startCtx.strokeStyle = '#00ffff'; startCtx.lineWidth = 8; startCtx.shadowBlur = 25; startCtx.shadowColor = '#00ffff';
                 startCtx.beginPath();
@@ -417,7 +409,7 @@
                 let dynamicFontSize = Math.min(36, Math.max(18, minDim * 0.062));
                 startCtx.font = `bold ${dynamicFontSize}px 'Cinzel Decorative', Georgia, serif`;
                 startCtx.textAlign = "center"; startCtx.textBaseline = "middle"; startCtx.letterSpacing = "2px";
-                let textY1 = H * 0.71; let textY2 = textY1 + (dynamicFontSize * 1.25); 
+                let textY1 = H * 0.84; let textY2 = textY1 + (dynamicFontSize * 1.25); 
                 startCtx.lineWidth = 2; startCtx.strokeStyle = "#000000";
                 startCtx.strokeText("KINETIC SORCERY", centerX, textY1); startCtx.strokeText("ACADEMY", centerX, textY2);
                 startCtx.fillStyle = "#ffcc00"; startCtx.fillText("KINETIC SORCERY", centerX, textY1); startCtx.fillText("ACADEMY", centerX, textY2);
@@ -425,6 +417,7 @@
             }
 
             startCtx.restore();
+            document.getElementById('webcam').readyState === video.HAVE_ENOUGH_DATA;
             requestAnimationFrame(updateStartScreen);
         }
 
@@ -521,7 +514,6 @@
                     crosshair.targetX = canvas.width - (validTarget.x + validTarget.width / 2);
                     crosshair.targetY = validTarget.y + validTarget.height / 2;
 
-                    // 🛠 Im門檻調整：如果魔杖正在畫五芒星
                     if (gameState === 'drawing') {
                         checkWandPointCollision(crosshair.targetX, crosshair.targetY);
                     }
@@ -553,9 +545,7 @@
             sendVideoFrame();
         }
 
-        // 為了讓黑畫面繪製期間也能透過背景調用相機，直接在載入時就進行部分監聽準備
         if (gameState === 'cover') {
-            // 提供點擊黑畫面直接觸發
             startScreen.parentElement.addEventListener('click', (e) => {
                 if(gameState === 'cover') activateWandMode();
             });
@@ -692,7 +682,6 @@
             }
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // 🛠️ 修正點：在 ready、playing 或是全新的 drawing（魔杖繪製符文）階段，皆渲染十字準星
             if (gameStarted || isGameOver || gameState === 'ready' || gameState === 'drawing') {
                 if (invulnerableTimer > 0) invulnerableTimer--;
 
