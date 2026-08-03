@@ -59,7 +59,7 @@
         #instruction li strong { color: #ffd700; }
         .prompt-click-text { font-size: 12px; color: #00d2ff; text-align: center; margin-top: 10px; font-weight: bold; text-shadow: 0 0 4px rgba(0,210,255,0.5); }
         
-        /* 遊戲開始魔法陣鍵 - 因移除難度加成後提示框縮短，故將按鈕上移至 top: 245px 以保持視覺緊湊 */
+        /* 遊戲開始魔法陣鍵 */
         #start-ritual-btn {
             display: none; position: absolute; top: 245px; left: 50%; transform: translateX(-50%); z-index: 16;
             width: 76px; height: 76px; border-radius: 50%; border: 2px solid #00d2ff;
@@ -85,7 +85,7 @@
         .success { color: #00d2ff; }
         .failed { color: #ff4500; }
 
-        /* 左下角五頂魔法帽生命值區 - 同步移至新按鈕下方 top: 345px */
+        /* 左下角五頂魔法帽生命值區 */
         #hat-hp-bar {
             display: none; position: absolute; top: 345px; left: 50%; transform: translateX(-50%); z-index: 15;
             gap: 8px; justify-content: center; align-items: center; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 20px; border: 1px solid #ff4500;
@@ -153,7 +153,7 @@
     <!-- 羅馬數字巨大倒數計時層 -->
     <div id="countdown-overlay">III</div>
 
-    <!-- 🛠️ 修正點：根據指示，精簡火球攔截與帽體閃避描述，並移除原有的第4條難度加成說明 -->
+    <!-- 提示 UI -->
     <div id="instruction">
         <strong id="ritual-title" style="color: #ff4500; display: block; text-align: center; font-size: 15px;">巫師火原素特訓：巨龍逆襲戰</strong>
         <ul id="ritual-rules">
@@ -281,16 +281,11 @@
             }
         }
 
+        // 🛠️ 修正點：移除原本 mousedown 與 touchstart 裡過時的 instructionBox.style.display = 'block'; 避免繪圖時提早彈出遮擋
         startScreen.addEventListener('mousedown', (e) => {
             if(gameState === 'cover') { 
                 gameState = 'drawing'; 
                 document.getElementById('start-prompt').style.display = 'none'; 
-                instructionBox.style.display = 'block';
-                document.getElementById('ritual-title').innerText = "結界啟動中...";
-                document.getElementById('ritual-title').style.color = "#ffd700";
-                document.getElementById('instruction').querySelector('ul').style.display = 'none';
-                document.getElementById('instruction').querySelector('.prompt-click-text').innerText = "請用手指在圓圈內依序滑過藍色發光點，一筆畫畫出五芒星！";
-                document.getElementById('instruction').querySelector('.prompt-click-text').style.textAlign = "left";
             }
         });
         startScreen.addEventListener('mousemove', handleTouchMove);
@@ -298,7 +293,6 @@
             if(gameState === 'cover') { 
                 gameState = 'drawing'; 
                 document.getElementById('start-prompt').style.display = 'none'; 
-                instructionBox.style.display = 'block';
             }
         }, { passive: false });
         startScreen.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -417,16 +411,9 @@
             requestAnimationFrame(updateStartScreen);
         }
 
+        // 🛠️ 修正點：一筆畫順利結束、外層蓋板功成身退時，提示框（詳細規則）與 START 按鈕才真正同步顯示
         function triggerReadyState() {
             gameState = 'ready';
-            
-            document.getElementById('ritual-title').innerText = "巫師火原素特訓：巨龍逆襲戰";
-            document.getElementById('ritual-title').style.color = "#ff4500";
-            document.getElementById('instruction').querySelector('ul').style.display = 'block';
-            
-            let clickPrompt = document.getElementById('instruction').querySelector('.prompt-click-text');
-            clickPrompt.innerText = "─ 使用魔法棒點擊下方 START 鍵即開始遊戲 ─";
-            clickPrompt.style.textAlign = "center";
             
             instructionBox.style.display = 'block';
             startBtn.style.display = 'flex';
