@@ -81,17 +81,17 @@
             100% { transform: translateX(-50%) scale(1); box-shadow: 0 0 15px rgba(0, 210, 255, 0.5), inset 0 0 10px rgba(0, 210, 255, 0.5); }
         }
         
-        /* 🛠️ 修正點 2：右下角成功攔截統計面板，尺寸與高度最佳化調整 */
+        /* 右下角成功攔截統計面板 - 🛠️ 修正點 1：預設改為 display: none 防止在倒數前穿幫 */
         #scoreboard { 
             position: absolute; bottom: 35px; right: 35px; z-index: 15; 
             background: rgba(0,0,0,0.75); color: #fff; padding: 10px 18px; border-radius: 14px; 
             border: 2px solid #00d2ff; font-weight: bold; font-size: 15px;
             box-shadow: 0 0 12px rgba(0, 210, 255, 0.4); display: none; height: 48px; box-sizing: border-box;
-            display: flex; align-items: center; justify-content: center;
+            align-items: center; justify-content: center;
         }
         .success { color: #00d2ff; font-size: 18px; margin: 0 3px; }
 
-        /* 🛠️ 修正點 1：將生命血條欄位移至「螢幕最下方靠左」，與計數器平行對齊，徹底杜絕畫面遮擋 */
+        /* 左下角五頂魔法帽生命值區 */
         #hat-hp-bar {
             display: none; position: absolute; bottom: 35px; left: 35px; z-index: 15;
             gap: 6px; justify-content: center; align-items: center; background: rgba(0,0,0,0.75); 
@@ -175,7 +175,7 @@
     <!-- 開始遊戲觸發魔法陣按鈕 -->
     <div id="start-ritual-btn" onclick="startCountdownFlow()">START</div>
 
-    <!-- 🛠️ 修正點：右下角計數器只保留「成功攔截」次數 -->
+    <!-- 右下角計數器 -->
     <div id="scoreboard">
         <div>成功攔截：<span id="txt-success" class="success">0</span> 次</div>
     </div>
@@ -353,7 +353,7 @@
                     let ratio = p.life / p.maxLife;
                     let grad = startCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
                     grad.addColorStop(0, 'rgba(255, 235, 160, ' + ratio + ')');
-                    grad.addColorStop(0.2, 'rgba(255, 110, 0, ' + ratio * 0.9 + ')');
+                    grad.addColorStop(0.2, 'rgba(255, 110, 0, ' + ratio * 0.8 + ')');
                     grad.addColorStop(1, 'rgba(0,0,0,0)');
                     
                     startCtx.beginPath(); 
@@ -491,7 +491,7 @@
                     clearInterval(timer);
                     countdownOverlay.style.display = 'none';
                     
-                    // 倒數結束，顯示排版優化後的底部雙控制面板
+                    // 🛠️ 修正點 2：在三秒倒數結束、正式進入遊戲的瞬間，才以 flex 動態喚醒成功攔截面板
                     document.getElementById('scoreboard').style.display = 'flex';
                     hpBar.style.display = 'flex';
                     stoneFrame.style.display = 'block';
@@ -674,7 +674,6 @@
             if (isGameOver || invulnerableTimer > 0) return; 
 
             scoreFailed++;
-            // 修正點：防禦失敗次數仍在後台增加以維持遊戲血量邏輯，但不再向前端元素 txt-failed 更新文字
 
             invulnerableTimer = 60; 
 
