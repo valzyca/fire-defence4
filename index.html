@@ -503,18 +503,18 @@
             }, 1000);
         }
 
-        // 🛠️ 修正點：防誤判且適度提高敏感度的色塊判定演算法
+        // 🛠️ 核心微調：精準收斂色塊判定，防止誤抓膚色、木紋與黃光背景
         tracking.ColorTracker.registerColor('magic_red', function(r, g, b) {
-            // 要求紅色顯著高於綠色與藍色（大於 2.2 倍，大幅避免抓到膚色與暖光背景）
-            let isRedDominant = (r > g * 2.2) && (r > b * 2.2);
-            // 限定綠藍不至於太高（避免白色或暖色亮光被誤判）
-            let isNotTooBrightWhite = (g < 110) && (b < 110);
-            // 基礎亮度門檻調整為 135（適中靈敏）
-            return isRedDominant && isNotTooBrightWhite && (r > 135);
+            // 1. 要求紅色成分必須極度顯著：為綠與藍的 2.5 倍以上
+            let isRedDominant = (r > g * 2.5) && (r > b * 2.5);
+            // 2. 嚴格限定綠藍最大門檻，壓制白光與過曝暖光（< 90）
+            let isNotWhiteOrYellow = (g < 90) && (b < 90);
+            // 3. 基礎紅色亮度提升至 150，過濾昏暗雜訊
+            return isRedDominant && isNotWhiteOrYellow && (r > 150);
         });
 
         const wandTracker = new tracking.ColorTracker(['magic_red']);
-        wandTracker.setMinDimension(4); // 捕捉面積門檻設為 4px
+        wandTracker.setMinDimension(5); // 捕捉面積門檻微調至 5px，收斂雜訊
 
         let trackerInitialized = false;
         function initTrackerAndAR() {
