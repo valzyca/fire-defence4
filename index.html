@@ -492,7 +492,6 @@
                     clearInterval(timer);
                     countdownOverlay.style.display = 'none';
                     
-                    // 倒數結束進入遊戲的瞬間，開啟成功攔截統計面板與血條
                     document.getElementById('scoreboard').style.display = 'flex';
                     hpBar.style.display = 'flex';
                     stoneFrame.style.display = 'block';
@@ -504,17 +503,18 @@
             }, 1000);
         }
 
-        // 🛠️ 核心修改：暗光高靈敏度魔杖追蹤演算法
+        // 🛠️ 修正點：防誤判且適度提高敏感度的色塊判定演算法
         tracking.ColorTracker.registerColor('magic_red', function(r, g, b) {
-            // 色彩相對強度：紅色需大幅高於綠與藍（1.6 倍以上）
-            let isRedDominant = (r > g * 1.6) && (r > b * 1.6);
-            // 基礎亮度門檻降至 95（原 165），大大提升低光源環境下的感應率
-            return isRedDominant && (r > 95);
+            // 要求紅色顯著高於綠色與藍色（大於 2.2 倍，大幅避免抓到膚色與暖光背景）
+            let isRedDominant = (r > g * 2.2) && (r > b * 2.2);
+            // 限定綠藍不至於太高（避免白色或暖色亮光被誤判）
+            let isNotTooBrightWhite = (g < 110) && (b < 110);
+            // 基礎亮度門檻調整為 135（適中靈敏）
+            return isRedDominant && isNotTooBrightWhite && (r > 135);
         });
 
         const wandTracker = new tracking.ColorTracker(['magic_red']);
-        // 將最小捕捉點面積門檻從 7 降至 3，使遠處細小紅點更敏銳
-        wandTracker.setMinDimension(3); 
+        wandTracker.setMinDimension(4); // 捕捉面積門檻設為 4px
 
         let trackerInitialized = false;
         function initTrackerAndAR() {
